@@ -25,9 +25,17 @@ Tools, models and prices change fast. Use whatever of these this session has:
 - **Connectors**: `mcp-registry` → `search_mcp_registry` / `suggest_connectors`
 - **Plugins and skills**: `SearchPlugins`, `SearchSkills` (`SuggestPluginInstall` / `SuggestSkills` render an install card, so use them when a result fits)
 - **AI models, clouds, services, pricing**: `WebSearch` (standard mode first). For Claude models and the Claude API / Agent SDK, use the `claude-api` skill or the `claude-code-guide` agent instead of guessing.
-- `references/catalog.md` next to this file is a starting map of common goals. Treat it as hints to verify, not as the answer.
+- **What other people built (GitHub)**: when `gh` is available, search the community live for plugins, skills, MCP servers and agent templates on the topic. Use the queries in `references/community.md` and prefer repos with real stars and a recent push. Read a repo's README before you recommend it, and link it rather than copying from it.
+- `references/catalog.md` next to this file is a starting map of common goals, and `references/community.md` lists the known community marketplaces, skill collections and awesome lists. Treat both as hints to verify, not as the answer.
 
-Never recommend something you couldn't confirm exists. Say so when a pick is your judgment rather than a checked fact.
+Never recommend something you couldn't confirm exists. Say so when a pick is your judgment rather than a checked fact. Only suggest installing code from a repo that is well known, maintained and has a readable source.
+
+### 3b. Check the cost side
+Every request has a cost side too: which model, how many tokens, which settings. The always-on section gives you **live session facts**: the model in use, and tips when the context fills up, the cost climbs or the usage limit gets close. Use them together with `references/models-and-costs.md` to suggest:
+- a better-fitting model for this kind of work (and a cheaper one for subagents or bulk work),
+- token savers (`/compact`, `/clear`, subagents, lower effort, fewer loaded connectors, a lean CLAUDE.md),
+- settings that help this user (permissions allow-lists, a status line with cost, hooks, plan choice).
+Only bring these up when they make a real difference for this request.
 
 ### 4. Pick the easiest path
 Prefer, in this order:
@@ -39,7 +47,8 @@ Prefer, in this order:
 Cover the layers that matter for this goal, and skip the rest:
 | Layer | Examples of what to decide |
 |---|---|
-| AI / model | which Claude model (or other AI) fits the cost, speed and quality needed |
+| AI / model | which Claude model (or other AI) fits the cost, speed and quality needed; what it will roughly cost |
+| Cost / settings | effort level, caching, batch, subagent model, Claude Code settings, which plan |
 | Where it runs | local Claude Code, Claude Agent SDK, Managed Agents, a cloud host, scheduled/cloud routines |
 | Connectors | the CRM, notes, docs, email, calendar, database, payments it should talk to |
 | Skills / plugins | packaged workflows that do this job already |

@@ -5,7 +5,8 @@ A Claude Code plugin that changes how Claude works. Every time you ask something
 - which **AI model** or service fits the job best
 - which **stack** or **cloud** to run it on
 - which **connectors** (HubSpot, Obsidian, Gmail, Supabase…) to plug in
-- which **skills and plugins** to install
+- which **skills and plugins** to install, including ones other people published on GitHub
+- how to spend fewer **tokens**: the right model, effort, settings and plan
 - how to make the whole process easier, faster and smarter
 
 Example: you ask "I want to build an agent". Claude researches live (connector registry, plugin and skill search, the web) and checks what you already have. Then it answers with a recommended stack: model, where to run it, connectors, skills, and the one step to start with.
@@ -40,6 +41,11 @@ The **Suggestion mode** setting (in the plugin's config) can be `always` (defaul
 - `hooks/register.ts` adds a short instruction to Claude's system prompt on every turn, so the behavior is always on.
 - `skills/tiabwft/SKILL.md` holds the full research method. Claude loads it for bigger goals.
 - `skills/tiabwft/references/catalog.md` is a starter map from goals to connectors and skills. Edit it to add your favourites.
+- `skills/tiabwft/references/community.md` maps what other people have built: the main plugin marketplaces, skill collections, awesome lists and MCP servers, plus `gh search` queries Claude runs live to find new ones.
+- `skills/tiabwft/references/models-and-costs.md` covers which model to use, prices, token savers, Claude Code settings and plans.
+
+### Live session facts
+Every turn, the hook also tells Claude which model is in use. It adds a tip when it's worth acting on: the context is over 60% full, the session has cost over $5, $20 or $50, over 70% of the plan's usage limit is used, or more than 80 connector tools are loaded. These lines only change when a threshold is crossed, so they don't break prompt caching.
 
 **Note:** where an organization manages Claude Code, system-prompt hooks only run for plugins the organization lists in managed settings.
 
