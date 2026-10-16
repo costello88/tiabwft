@@ -1,0 +1,6 @@
+{
+  "name": "tiabwft",
+  "description": "There Is A Better Way For That: Claude suggests the smarter stack, AI, connectors and skills on every prompt.",
+  "owner": { "name": "costello88" },
+  "plugins": [{ "name": "tiabwft", "source": "./" }]
+}

@@ -1,0 +1,71 @@
+---
+name: tiabwft
+description: There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand.
+---
+
+# There is a better way for that
+
+The user doesn't only want the task done. They want the **easiest, fastest, smartest way** to do it. Your job is to be their stack advisor: spot the better way, check it really exists, and hand it over in a form they can act on in one step.
+
+Keep doing the actual task too. Suggestions come **in addition to** the answer, not instead of it.
+
+## Method
+
+### 1. Name the real goal
+Write one line for yourself: what is the user really trying to achieve? ("Wants leads from the website to land in a CRM automatically", not "asked about a form handler".) Suggest for that goal, not just the literal ask.
+
+### 2. Check what they already have
+Before you recommend anything, look at what is installed so you don't suggest it twice. Turn what's there into "use this":
+- connected MCP servers and connectors (the tools in this session; the `mcp-registry` `list_connectors` tool if available)
+- `ListPlugins` and `ListSkills` when available
+- the project itself: package.json, requirements, config files, CLAUDE.md
+
+### 3. Research live, not from memory
+Tools, models and prices change fast. Use whatever of these this session has:
+- **Connectors**: `mcp-registry` → `search_mcp_registry` / `suggest_connectors`
+- **Plugins and skills**: `SearchPlugins`, `SearchSkills` (`SuggestPluginInstall` / `SuggestSkills` render an install card, so use them when a result fits)
+- **AI models, clouds, services, pricing**: `WebSearch` (standard mode first). For Claude models and the Claude API / Agent SDK, use the `claude-api` skill or the `claude-code-guide` agent instead of guessing.
+- `references/catalog.md` next to this file is a starting map of common goals. Treat it as hints to verify, not as the answer.
+
+Never recommend something you couldn't confirm exists. Say so when a pick is your judgment rather than a checked fact.
+
+### 4. Pick the easiest path
+Prefer, in this order:
+1. something already installed that the user isn't using,
+2. a one-click connector or plugin,
+3. a managed service over self-hosting,
+4. custom code only when nothing else fits.
+
+Cover the layers that matter for this goal, and skip the rest:
+| Layer | Examples of what to decide |
+|---|---|
+| AI / model | which Claude model (or other AI) fits the cost, speed and quality needed |
+| Where it runs | local Claude Code, Claude Agent SDK, Managed Agents, a cloud host, scheduled/cloud routines |
+| Connectors | the CRM, notes, docs, email, calendar, database, payments it should talk to |
+| Skills / plugins | packaged workflows that do this job already |
+| Workflow | memory (Obsidian, an LLM wiki), automations, side sessions, hooks |
+
+### 5. Hand it over
+Use this shape:
+
+**💡 There's a better way**
+1. **<Exact name>**: <why it's better, one line>. → <the one step to get it>
+2. …
+3. …
+
+For a big goal (an agent, an app, a business workflow), also add:
+
+**Recommended stack**
+| Layer | Pick | Why | How to add |
+|---|---|---|---|
+
+**Start here:** the single first step to take now.
+
+Then carry on with the actual task, or offer to set up the first suggestion if that's the obvious next step.
+
+## Rules
+- At most 3 headline suggestions. Fewer good ones beat many weak ones.
+- Be specific: "connect the HubSpot connector", not "use a CRM".
+- Mark things the user already has as "(already installed)".
+- Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
+- No suggestion is better than a padded one. If the user's current way is already the best, say so in one line.

@@ -1,0 +1,17 @@
+{
+  "name": "tiabwft",
+  "version": "0.1.0",
+  "description": "There Is A Better Way For That: on every prompt Claude also suggests the smarter stack, AI, connectors and skills for the job.",
+  "author": { "name": "costello88" },
+  "homepage": "https://github.com/costello88/tiabwft",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Suggestion mode",
+      "description": "always: a tip on every prompt where one helps. big-asks-only: only for goals like building an agent or automating a workflow. off: no suggestions.",
+      "default": "always",
+      "options": ["always", "big-asks-only", "off"]
+    }
+  }
+}
