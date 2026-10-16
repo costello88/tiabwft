@@ -13,3 +13,5 @@ Hints only. Check each one live (registry, plugin search, web) before you recomm
 | Project / team work | Claude with the tracker connected | Linear, Asana, ClickUp, monday.com, Atlassian | `product-management:*`, `engineering:standup` |
 | Repeating tasks | scheduled tasks / `/loop` / cloud routines instead of doing them by hand | whatever the task touches | `schedule`, `loop` |
 | Faster communication | Slack or email connected so Claude drafts replies in context | Gmail, Slack, Fireflies (meeting notes) | `small-business:inbox-manager` |
+
+[OK] Command outcome recorded
