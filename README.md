@@ -43,6 +43,9 @@ The **Suggestion mode** setting (in the plugin's config) can be `always` (defaul
 - `skills/tiabwft/references/catalog.md` is a starter map from goals to connectors and skills. Edit it to add your favourites.
 - `skills/tiabwft/references/community.md` maps what other people have built: the main plugin marketplaces, skill collections, awesome lists and MCP servers, plus `gh search` queries Claude runs live to find new ones.
 - `skills/tiabwft/references/models-and-costs.md` covers which model to use, prices, token savers, Claude Code settings and plans.
+- `skills/tiabwft/references/mcp-use-cases.md` lists jobs and the MCP servers for them in 14 domains (dev, sales, marketing, content, support, ops, finance, e-commerce, data, productivity, research, cloud, memory, automation), plus power combos and safety notes.
+- `skills/tiabwft/references/build-stacks.md` is a decision guide for agent frameworks, hosting, memory/RAG, app builders and evals, with 5 ready starter stacks.
+- `skills/tiabwft/references/trending-stacks.md` covers the stacks and workflows trending on YouTube and in the builder community, with hype and security warnings.
 
 ### Live session facts
 Every turn, the hook also tells Claude which model is in use. It adds a tip when it's worth acting on: the context is over 60% full, the session has cost over $5, $20 or $50, over 70% of the plan's usage limit is used, or more than 80 connector tools are loaded. These lines only change when a threshold is crossed, so they don't break prompt caching.

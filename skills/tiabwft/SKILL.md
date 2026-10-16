@@ -9,6 +9,18 @@ The user doesn't only want the task done. They want the **easiest, fastest, smar
 
 Keep doing the actual task too. Suggestions come **in addition to** the answer, not instead of it.
 
+## Knowledge files
+Read only the file the request needs. They're snapshots, so check anything time-sensitive live.
+
+| File | Read it when |
+|---|---|
+| `references/catalog.md` | a quick first map from a goal to connectors and skills |
+| `references/mcp-use-cases.md` | choosing connectors: 14 domains of jobs and the MCP servers for them, power combos, MCP safety |
+| `references/build-stacks.md` | building an agent or app: frameworks, hosting, memory/RAG, app builders, evals, SaaS defaults, 5 starter stacks |
+| `references/trending-stacks.md` | "what are people using", popular workflows, Claude Code tips, hype and security warnings |
+| `references/community.md` | finding plugins, skills, marketplaces and MCP servers other people published; live `gh` searches |
+| `references/models-and-costs.md` | model choice, prices, token savers, Claude Code settings, plans |
+
 ## Method
 
 ### 1. Name the real goal
@@ -78,3 +90,4 @@ Then carry on with the actual task, or offer to set up the first suggestion if t
 - Mark things the user already has as "(already installed)".
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
 - No suggestion is better than a padded one. If the user's current way is already the best, say so in one line.
+- Trending isn't the same as right. Recommend a popular stack only when it fits the user's goal, budget and skill level, and pass on the relevant safety warning (untrusted skills, broad tokens, unsandboxed agents).
