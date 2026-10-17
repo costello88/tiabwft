@@ -28,6 +28,8 @@ const sameSubject = (a: Fact, b: Fact): boolean => normaliseSubject(a.subject) =
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001F\u007F\u0085\u2028\u2029]/
 
+export const hasControlChars = (text: string): boolean => CONTROL_CHARS.test(text)
+
 // Validates anything that claims to be a fact (the reader's JSON, a stored row) and
 // returns a clean Fact, or undefined when any rule fails.
 export const toFact = (draft: unknown, source: FactSource, now: number, defaultScope: FactScope = 'project'): Fact | undefined => {
@@ -37,7 +39,7 @@ export const toFact = (draft: unknown, source: FactSource, now: number, defaultS
   const d = draft as Record<string, unknown>
   // Facts become single lines in memory.md and the prompt: a line break or other
   // control character would let untrusted input forge new lines or headings.
-  if ([d.subject, d.text, d.reason].some(v => typeof v === 'string' && CONTROL_CHARS.test(v))) {
+  if ([d.subject, d.text, d.reason].some(v => typeof v === 'string' && hasControlChars(v))) {
     return undefined
   }
   const subject = typeof d.subject === 'string' ? d.subject.trim() : ''

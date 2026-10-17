@@ -2,7 +2,7 @@ import type { ModelCompleteRequest, ModelCompleteResult } from 'claude-code'
 
 import type { Fact } from '../../types'
 import { hasSuggestionBlock } from '../suggestion'
-import { containsSecret, LIMITS, toFact } from './facts'
+import { containsSecret, hasControlChars, LIMITS, toFact } from './facts'
 
 export type ReaderResult = { facts: Fact[]; suggested: string[] }
 export type Complete = (request: ModelCompleteRequest) => Promise<ModelCompleteResult>
@@ -32,8 +32,15 @@ At most 8 facts. subject max 60 characters, text max 160, reason max 120. With n
 
 export const shouldRead = (prompt: string, answer: string): boolean => prompt.trim().length >= 40 || hasSuggestionBlock(answer)
 
+// Swapping the angle brackets stops untrusted text from closing the tags around it.
+const neutraliseTags = (text: string): string => text.replace(/</g, '‹').replace(/>/g, '›')
+
+// The 💡 block sits at the end of an answer, so keep the first 2,000 and the last 3,990 characters.
+const capAnswer = (answer: string): string =>
+  answer.length <= 6000 ? answer : `${answer.slice(0, 2000)}\n…\n${answer.slice(-3990)}`
+
 export const buildReaderPrompt = (prompt: string, answer: string): string =>
-  `<user_prompt>\n${prompt.slice(0, 2000)}\n</user_prompt>\n\n<assistant_answer>\n${answer.slice(0, 6000)}\n</assistant_answer>`
+  `<user_prompt>\n${neutraliseTags(prompt.slice(0, 2000))}\n</user_prompt>\n\n<assistant_answer>\n${neutraliseTags(capAnswer(answer))}\n</assistant_answer>`
 
 export const parseReaderReply = (text: string, now: number): ReaderResult => {
   const start = text.indexOf('{')
@@ -52,8 +59,9 @@ export const parseReaderReply = (text: string, now: number): ReaderResult => {
     .map(draft => toFact(draft, 'conversation', now))
     .filter((f): f is Fact => f !== undefined)
     .slice(0, 8)
+  // Checked before trimming, so a separator inside the name is seen and dropped.
   const suggested = (Array.isArray(obj.suggested) ? obj.suggested : [])
-    .filter((s): s is string => typeof s === 'string')
+    .filter((s): s is string => typeof s === 'string' && !hasControlChars(s) && !s.includes(':'))
     .map(s => s.trim())
     .filter(s => s.length > 0 && s.length <= LIMITS.subject && !containsSecret(s))
     .slice(0, 10)
@@ -70,7 +78,7 @@ export const runReader = async (complete: Complete, prompt: string, answer: stri
       model: 'haiku',
       system: READER_SYSTEM,
       prompt: buildReaderPrompt(prompt, answer),
-      maxTokens: 800,
+      maxTokens: 1500,
       effort: 'low',
       timeoutMs: 10000,
     })
