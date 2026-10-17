@@ -59,10 +59,34 @@ test('suggested names are normalised, unique and capped at 50', async () => {
   expect(all.at(-1)).toBe('tool 59')
 })
 
-test('projectPartition prefers the GitHub repo, else the folder name', async () => {
-  expect(projectPartition('C:\\Users\\me\\crm', '[remote "origin"]\n\turl = https://github.com/costello88/crm.git\n')).toBe('project:costello88/crm')
-  expect(projectPartition('/home/me/shop', '[remote "origin"]\n\turl = git@github.com:me/shop\n')).toBe('project:me/shop')
-  expect(projectPartition('/home/me/shop')).toBe('project:shop')
+test('projectPartition prefers the GitHub repo, else the folder name plus a hash of the root', async () => {
+  expect(await projectPartition('C:\\Users\\me\\crm', '[remote "origin"]\n\turl = https://github.com/costello88/crm.git\n')).toBe('project:costello88/crm')
+  expect(await projectPartition('/home/me/shop', '[remote "origin"]\n\turl = git@github.com:me/shop\n')).toBe('project:me/shop')
+  expect(await projectPartition('/home/me/shop')).toMatch(/^project:shop-[0-9a-f]{8}$/)
+  expect(await projectPartition('/home/me/shop')).toBe(await projectPartition('/home/me/shop'))
+})
+
+test('projectPartition: same-named folders differ, and spaces or other characters never reach the partition', async () => {
+  const a = await projectPartition('/work/client-a/api')
+  const b = await projectPartition('/work/client-b/api')
+  expect(a).not.toBe(b)
+  const spaced = await projectPartition('C:\\Users\\me\\My Project é')
+  expect(spaced).toMatch(/^project:My_Project__-[0-9a-f]{8}$/)
+  expect(spaced.includes(' ')).toBe(false)
+  // The Azure function's own partition rule.
+  for (const p of [a, b, spaced, await projectPartition(`/x/${'n'.repeat(100)}`)]) {
+    expect(/^(personal|project:[\w./-]{1,120})$/.test(p)).toBe(true)
+  }
+  expect(await projectPartition(`/x/${'n'.repeat(100)}`)).toMatch(/^project:n{60}-[0-9a-f]{8}$/)
+})
+
+test('azureSave sends at most the 450 newest facts', async () => {
+  const facts = Array.from({ length: 500 }, (_, i) => ({ ...one.facts[0]!, id: factId('decision', `tool ${i}`), subject: `tool ${i}`, lastSeen: i }))
+  let body = ''
+  await azureSave(async (_url, init) => { body = init?.body ?? ''; return { ok: true, status: 204, text: '' } }, { url: 'https://x', key: 'k' }, 'project:a/b', { facts, tombstones: {} })
+  const sent = (JSON.parse(body) as { facts: { lastSeen: number }[] }).facts
+  expect(sent.length).toBe(450)
+  expect(Math.min(...sent.map(f => f.lastSeen))).toBe(50)
 })
 
 test('azureLoad: success, timeout and bad responses', async () => {

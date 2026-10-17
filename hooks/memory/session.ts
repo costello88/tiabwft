@@ -141,7 +141,8 @@ export const applyLearned = (
 
 export const forgetMatching = (personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
   const needle = text.trim().toLowerCase()
-  const hits = (m: Memory) => m.facts.filter(f => f.source !== 'env' && needle !== '' && `${f.subject} ${f.text}`.toLowerCase().includes(needle))
+  // Under 3 characters a needle matches almost everything, so it matches nothing.
+  const hits = (m: Memory) => m.facts.filter(f => f.source !== 'env' && needle.length >= 3 && `${f.subject} ${f.text}`.toLowerCase().includes(needle))
   const removed = [...hits(personal), ...hits(project)]
   const drop = (m: Memory) => hits(m).reduce((acc, f) => deleteFact(acc, f.id, now), m)
   return { personal: drop(personal), project: drop(project), removed }

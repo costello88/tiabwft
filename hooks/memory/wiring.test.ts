@@ -262,3 +262,31 @@ test('env facts are never written to memory.md, so an unchanged file stays untou
   expect(text).not.toContain('Stripe')
   expect(text).not.toContain('(env,')
 })
+
+test('an http:// sync URL is ignored: no request is sent', { options: { azureSyncUrl: 'http://x.azurewebsites.net/api/memory', azureSyncKey: 'k' } }, async ($, on) => {
+  files.clear()
+  azureEngine(on, { facts: [], tombstones: {} }, 1)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await runTurn($, 'h1')
+  expect(fetched).toEqual([])
+})
+
+test('an https:// sync URL is used (control)', { options: SYNC }, async ($, on) => {
+  files.clear()
+  azureEngine(on, { facts: [], tombstones: {} }, 1)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect(fetched.length > 0).toBe(true)
+})
+
+test('no reader call while tiabwft is turned off with /tiabwft off', async ($, on) => {
+  files.clear()
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await runCommand($, 'off')
+  await runTurn($, 'f1')
+  expect(modelCalls).toBe(0)
+  await runCommand($, 'on')
+  await runTurn($, 'f2')
+  expect(modelCalls).toBe(1)
+})

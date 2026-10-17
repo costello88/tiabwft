@@ -29,7 +29,9 @@ const prompts = new Map<string, string>()
 let fileState: FileState = { existed: false, readFailed: true }
 
 const memoryDeps = async ($: EngineInterface, options: Record<string, unknown>): Promise<MemoryDeps> => {
-  const url = typeof options.azureSyncUrl === 'string' ? options.azureSyncUrl.trim() : ''
+  // Only https: an http:// URL would send the key in clear, so it means no sync.
+  const given = typeof options.azureSyncUrl === 'string' ? options.azureSyncUrl.trim() : ''
+  const url = /^https:\/\//i.test(given) ? given : ''
   const key = typeof options.azureSyncKey === 'string' ? options.azureSyncKey : ''
   return {
     root: await $.session.root(),
@@ -174,6 +176,7 @@ export const mutateMemory = (
 }
 
 const MAX_SHOWN = 40
+const FORGET_MIN = 3
 const MAX_LISTED = 60
 
 const sourceLabel = (f: Fact): string => {
@@ -204,7 +207,7 @@ export const register: Register = (on, options) => {
       description: 'There is a better way for that: /tiabwft on|off|panel, /tiabwft memory [off|on|reset], /tiabwft forget <text>, /tiabwft remember <text>',
     })
     if (protocol !== undefined) {
-      void $.ui.open({ id: PANE, title: PANE_TITLE })
+      void $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)
     }
     if (memoryOn && protocol !== undefined) {
       // Until a load succeeds, never write the project file: it may exist unread.
@@ -255,7 +258,8 @@ export const register: Register = (on, options) => {
         const answer = e.answer
         void (async () => {
           try {
-            if (await read($, pausedAtom)) {
+            // Paused (/tiabwft memory off) or tiabwft muted (/tiabwft off): no reader call.
+            if ((await read($, pausedAtom)) || !(await read($, enabled))) {
               return
             }
             const deps = await memoryDeps($, options)
@@ -376,7 +380,8 @@ export const register: Register = (on, options) => {
       if (arg.startsWith('memory ')) {
         return { text: 'Usage: /tiabwft memory [off|on|reset]' }
       }
-      if (arg === 'forget') {
+      // A needle of 1 or 2 characters would match almost everything, for good.
+      if (arg === 'forget' || (arg.startsWith('forget ') && raw.slice('forget '.length).trim().length < FORGET_MIN)) {
         return { text: 'Usage: /tiabwft forget <text>' }
       }
       if (arg === 'remember') {

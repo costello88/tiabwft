@@ -133,3 +133,25 @@ test('mergeWithFile: the file wins, hand deletions get a tombstone at mtime, new
   expect(merged.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['New:learned later', 'Zapier:mine'])
   expect(merged.tombstones).toEqual({ [factId('stack', 'Old')]: 100 })
 })
+
+test('the secret filter catches Stripe, Google, private keys, GitLab, npm and Bearer tokens', async () => {
+  // Built at run time, so the repo holds no string that looks like a real token.
+  const tail = 'a1B2c3D4e5F6g7H8i9J0' + 'k1L2m3N4o5P6q7R8s9T0'
+  const shapes = [
+    `sk_live_${tail}`,
+    `sk_test_${tail}`,
+    `rk_live_${tail}`,
+    `AIza${tail.slice(0, 35)}`,
+    `-----BEGIN ${'RSA PRIVATE'} KEY-----`,
+    `-----BEGIN ${'PRIVATE'} KEY-----`,
+    `glpat-${tail.slice(0, 20)}`,
+    `npm_${tail.slice(0, 36)}`,
+    `Authorization: Bearer ${tail}`,
+  ]
+  for (const shape of shapes) {
+    expect(containsSecret(`use ${shape} here`)).toBe(true)
+    expect(toFact({ kind: 'stack', subject: 'Keys', text: `use ${shape}` }, 'conversation', 1)).toBeUndefined()
+  }
+  expect(containsSecret('we pay with Stripe and host on npm')).toBe(false)
+  expect(containsSecret('a bearer bond')).toBe(false)
+})

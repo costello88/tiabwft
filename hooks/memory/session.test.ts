@@ -72,6 +72,7 @@ test('learn sorts personal and project facts and ignores trivial turns', async (
 test('forgetMatching and forgetById delete across both memories, never env facts', async () => {
   const personal: Memory = { facts: [{ id: 'rejection:zapier', kind: 'rejection', scope: 'personal', subject: 'Zapier', text: 'too expensive', source: 'conversation', firstSeen: 1, lastSeen: 1 }], tombstones: {} }
   const project: Memory = { facts: [{ id: 'stack:zapier', kind: 'stack', scope: 'project', subject: 'Zapier', text: 'seen in .env.example', source: 'env', firstSeen: 1, lastSeen: 1 }], tombstones: {} }
+  expect(forgetMatching(personal, project, 'za', 9).removed).toEqual([])
   const r = forgetMatching(personal, project, 'zap', 9)
   expect(r.removed.map(f => f.id)).toEqual(['rejection:zapier'])
   expect(r.project.facts.length).toBe(1)

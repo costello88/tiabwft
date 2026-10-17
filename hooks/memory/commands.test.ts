@@ -98,6 +98,8 @@ test('missing arguments give usage lines', async ($, on) => {
   engine(on)
   await $.session.start({ source: 'startup', cwd: '/repo' } as never)
   expect((await run($, 'forget')).text).toBe('Usage: /tiabwft forget <text>')
+  expect((await run($, 'forget ab')).text).toBe('Usage: /tiabwft forget <text>')
+  expect((await run($, 'forget  a ')).text).toBe('Usage: /tiabwft forget <text>')
   expect((await run($, 'remember  ')).text).toBe('Usage: /tiabwft remember <text>')
   expect((await run($, 'memory foo')).text).toBe('Usage: /tiabwft memory [off|on|reset]')
 })
@@ -112,4 +114,14 @@ test('mode off: memory commands change nothing and write nothing', { options: { 
     expect((await run($, args)).text).toContain("isn't loaded")
   }
   expect(files.get('/repo/.claude/tiabwft/memory.md')).toBe(before)
+})
+
+test('forget with under 3 characters deletes nothing', async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Decisions\n- Vercel: team knows it (you, 2026-10-17)\n')
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await run($, 'forget e')).text).toBe('Usage: /tiabwft forget <text>')
+  expect((await run($, 'memory')).text).toContain('Vercel')
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).toContain('Vercel')
 })

@@ -9,6 +9,12 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
   /\bAKIA[0-9A-Z]{16}\b/,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/,
+  /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/,
+  /\bAIza[0-9A-Za-z_-]{30,}/,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  /\bglpat-[A-Za-z0-9_-]{20,}/,
+  /\bnpm_[A-Za-z0-9]{30,}/,
+  /\bBearer\s+[A-Za-z0-9._~+/-]{16,}/i,
   /password\s*[=:]/i,
   /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,
 ]

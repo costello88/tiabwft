@@ -1,4 +1,4 @@
-import type { Memory } from '../../types'
+import type { Fact, Memory } from '../../types'
 import { asMemory, emptyMemory, normaliseSubject } from './facts'
 import { parseMemoryFile, renderMemoryFile } from './memfile'
 import type { ParsedFile } from './memfile'
@@ -86,10 +86,18 @@ export const addSuggested = async (kv: KV, names: readonly string[]): Promise<vo
   await kv.set(SUGGESTED_KEY, unique.slice(-50))
 }
 
-export const projectPartition = (root: string, gitConfig?: string): string => {
+// A GitHub remote names the project everywhere. Otherwise the folder name, cut to the
+// characters the Azure function accepts, plus a hash of the full root path, so two
+// folders with the same name ("api", "web") never share a partition.
+export const projectPartition = async (root: string, gitConfig?: string): Promise<string> => {
   const m = gitConfig?.match(/url\s*=\s*\S*github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?\s*$/m)
-  const folder = root.split(/[\\/]/).filter(Boolean).pop() ?? 'unknown'
-  return `project:${m?.[1] ?? folder}`
+  if (m?.[1] !== undefined) {
+    return `project:${m[1]}`
+  }
+  const folder = (root.split(/[\\/]/).filter(Boolean).pop() ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 60)
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(root)))
+  const hash = [...digest.slice(0, 4)].map(b => b.toString(16).padStart(2, '0')).join('')
+  return `project:${folder}-${hash}`
 }
 
 const partitionUrl = (config: AzureConfig, partition: string): string =>
@@ -129,12 +137,17 @@ export const recentTombstones = (tombstones: Record<string, number>, now: number
       .slice(0, TOMBSTONE_MAX),
   )
 
+// The function takes at most 500 facts per PUT; the newest 450 keep sync working.
+const FACT_MAX = 450
+
+export const newestFacts = (facts: readonly Fact[]): Fact[] => [...facts].sort((a, b) => b.lastSeen - a.lastSeen).slice(0, FACT_MAX)
+
 export const azureSave = async (fetch: Fetch, config: AzureConfig, partition: string, memory: Memory, now: number = Date.now()): Promise<boolean> => {
   try {
     const response = await fetch(partitionUrl(config, partition), {
       method: 'PUT',
       headers: { 'x-tiabwft-key': config.key, 'content-type': 'application/json' },
-      body: JSON.stringify({ facts: memory.facts, tombstones: recentTombstones(memory.tombstones, now) }),
+      body: JSON.stringify({ facts: newestFacts(memory.facts), tombstones: recentTombstones(memory.tombstones, now) }),
     })
     return response.ok
   } catch {
