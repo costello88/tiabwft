@@ -68,9 +68,14 @@ npx markdownlint-cli2 && node scripts/check-references.mjs
 
 Next to the chat, the **💡 Better way** panel always shows the latest stack suggestion: its goal, the time and the full block, rendered as markdown. It opens when a session starts and updates after every answer that carries a 💡 block, so a tip stays visible after the chat has scrolled on. Reopen it with `/tiabwft panel`. Subagent replies and interrupted turns don't replace it.
 
-## Roadmap
+## Memory
 
-- Remember your stack across sessions, so the same tools aren't suggested twice.
+tiabwft learns, automatically, what you use, what you chose, what you don't want and your constraints, and uses that in every suggestion: it builds on what you have, never brings back a tool you turned down, and keeps picks within your budget.
+
+- **Where:** this project's memory lives in `.claude/tiabwft/memory.md`, a readable file you can edit. Your personal profile (budget, skill level, general preferences) stays on your computer.
+- **How:** at the start of a session it reads your connectors, `package.json`, Python files, compose files and the *names* in `.env.example`, never values. After a turn where you said something worth remembering, a small model (Haiku) picks out the facts in the background, for about $0.0003 a turn.
+- **Control:** the panel's 🧠 What I know section (open it with `/tiabwft panel`) lists everything, with ✕ to delete. `/tiabwft memory`, `/tiabwft forget <text>`, `/tiabwft remember <text>`, `/tiabwft memory off` (pause for this session) and `/tiabwft memory reset`.
+- **Settings:** `memory` (on/off), `projectFile` (commit/ignore), and optional Azure sync (`azureSyncUrl`, `azureSyncKey`; see `azure/README.md`).
 
 ## License
 
