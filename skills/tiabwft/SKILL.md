@@ -88,13 +88,17 @@ Never stop at one tool. Give the full stack that makes the job better end to end
 | 📊 Monitoring / cost | … | … | … | … |
 | 🛡️ Safety | … | … | … | … |
 
-Status is "already installed", "installed, needs login" or "new". Drop rows that don't matter for this goal; add rows for any other system the job touches.
+Status is "already installed", "installed, needs login" or "new". Each row names **one** specific product, connector, skill or repo: put other options in the Alternatives line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Drop rows that don't matter for this goal; add rows for any other system the job touches.
 
 **Flow:** <how the pieces chain: website form → automation → CRM → chat alert → weekly report>
 
 **Alternatives:** <one line: the cheaper/simpler stack, and the bigger/pro one>
 
-**Start here:** <the single first step to take now>
+**Start here:** <exactly one concrete action the user can take right now: connect X, run this command, open this page. One action: no "then", no list, no question>
+
+Bad: "**Start here:** Run `npx create-next-app`, then `/init`." Good: "**Start here:** Run `npx create-next-app@latest` in a new folder." The next steps belong in the Flow line or the answer itself.
+
+Questions for the user (which tool they use, how many leads, and so on) go on their own line after Start here, never inside it.
 
 Fill every row from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Render `suggest_connectors` / `SuggestPluginInstall` / `SuggestSkills` cards for the strongest new picks. Then carry on with the actual task, or offer to set up the first step.
 
