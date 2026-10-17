@@ -54,7 +54,9 @@ export const toFact = (draft: unknown, source: FactSource, now: number, defaultS
   if (reason !== undefined && reason.length > LIMITS.reason) {
     return undefined
   }
-  if ([subject, text, reason ?? ''].some(containsSecret)) {
+  // Also the line as memory.md writes it: "password" + "hunter2" is only a secret together.
+  const asLine = `${subject}: ${text}${reason === undefined ? '' : `; ${reason}`}`
+  if ([subject, text, reason ?? '', asLine].some(containsSecret)) {
     return undefined
   }
 
