@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Memory, Suggestion } from '../types'
-import { emptyMemory } from './memory/facts'
+import type { Fact, Memory, Suggestion } from '../types'
+import { combine, emptyMemory } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
-import { applyLearned, learn, loadAll, persistAll } from './memory/session'
+import { applyLearned, forgetById, learn, loadAll, persistAll } from './memory/session'
 import type { MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
@@ -127,6 +127,12 @@ const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, 
   fileExisted = fileExisted || project.facts.some(f => f.source !== 'env')
 }
 
+const sourceLabel = (f: Fact): string => {
+  const date = new Date(f.firstSeen).toISOString().slice(0, 10)
+
+  return f.source === 'env' ? f.text : f.source === 'user' ? `you added, ${date}` : `you said, ${date}`
+}
+
 export const register: Register = (on, options) => {
   const protocol = protocolFor(options.mode)
   const memoryOn = options.memory !== 'off'
@@ -207,14 +213,49 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Markdown } = $.ui.resolve(e)
+    const { Box, Text, Markdown, Button } = $.ui.resolve(e)
     const shown = await read($, latest)
     const total = await read($, count)
     const isOn = protocol !== undefined && (await read($, enabled))
+    const known = memoryOn ? combine(await read($, personalAtom), await read($, projectAtom)) : []
+    const fresh = new Set(await read($, freshAtom))
+    const unreadable = await read($, unreadableAtom)
+    const memoryPart = !memoryOn ? (
+      <Text key="mem-off" dimColor>🧠 Memory is off (tiabwft setting: memory).</Text>
+    ) : (
+      <Box key="memory" flexDirection="column">
+        <Text key="mem-title">🧠 What I know</Text>
+        {known.length === 0 && <Text key="mem-empty" dimColor>Nothing yet. Tell me what you use or want, and it lands here.</Text>}
+        {known.map(f => (
+          <Box key={`fact-${f.id}`} flexDirection="row">
+            <Text key={`text-${f.id}`}>{`${fresh.has(f.id) ? '✨ ' : ''}${f.scope === 'personal' ? '👤' : '🗂️'} ${f.subject}: ${f.text}`}</Text>
+            <Text key={`src-${f.id}`} dimColor>{` · ${sourceLabel(f)} `}</Text>
+            {f.source === 'env' ? (
+              <Text key={`lock-${f.id}`} dimColor>🔒</Text>
+            ) : (
+              <Button
+                key={`forget-${f.id}`}
+                plain
+                onPress={() => {
+                  void (async () => {
+                    const next = forgetById(await read($, personalAtom), await read($, projectAtom), f.id, Date.now())
+                    await saveMemory($, options, next.personal, next.project)
+                  })()
+                }}
+              >
+                ✕
+              </Button>
+            )}
+          </Box>
+        ))}
+        {unreadable > 0 && <Text key="mem-unreadable" dimColor>{`${unreadable} line(s) in .claude/tiabwft/memory.md couldn't be read and were skipped.`}</Text>}
+      </Box>
+    )
     if (shown === null) {
       return (
         <Box flexDirection="column">
           <Text dimColor>{isOn ? 'No suggestion yet. Ask something and the latest stack tip lands here.' : 'tiabwft is off. Turn it on with /tiabwft on.'}</Text>
+          {memoryPart}
         </Box>
       )
     }
@@ -225,6 +266,7 @@ export const register: Register = (on, options) => {
         <Text key="meta" dimColor>{`${time} · ${shown.topic}${total > 1 ? ` · ${total} this session` : ''}`}</Text>
         <Markdown key="block" text={shown.markdown} />
         {!isOn && <Text key="off" dimColor>tiabwft is off now; this is the last tip from before.</Text>}
+        {memoryPart}
       </Box>
     )
   })
