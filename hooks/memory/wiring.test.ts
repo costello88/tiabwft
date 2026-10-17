@@ -15,10 +15,12 @@ let modelCalls = 0
 // Each call to the model waits on a resolver the test calls by hand.
 const pending: Array<(value: unknown) => void> = []
 
+let seed: Record<string, unknown> = {}
 const engine = (on: On, isHanging = false, reply = '{"facts":[],"suggested":[]}', isManual = false) => {
   modelCalls = 0
   pending.length = 0
-  mock.store(on)
+  mock.store(on, seed)
+  seed = {}
   on('prompt.compose', async () => ({ sections: [{ id: 'intro', text: 'You are Claude.', scope: 'shared' as const }] }))
   on('turn.complete', async () => ({ text: '' }))
   on('session.start', async (_$, e) => ({ cwd: e.cwd }))
@@ -128,4 +130,26 @@ test('a slow read does not overwrite what a later turn learned', async ($, on) =
   const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
   expect(text).toContain('Supabase')
   expect(text).toContain('Zapier')
+})
+
+const PANE_PROPS = { title: 'Better way', isFocused: false, bodyColumns: 60, placement: 'dock' as const, scroll: { offset: 0, bodyRows: 30 }, view: {} }
+
+test('a forget press while a learn is pending keeps the delete and still adds the learned fact', async ($, on) => {
+  files.clear()
+  const old = { id: 'stack:old', kind: 'stack', scope: 'personal', subject: 'Old', text: 'old text', source: 'conversation', firstSeen: 1, lastSeen: 1 }
+  seed = { 'memory.personal': { facts: [old], tombstones: {} } }
+  engine(on, false, '', true)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await runTurn($, 'p1')
+  expect(pending.length).toBe(1)
+  const ui = await $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
+  expect(await ui.find({ key: 'forget-stack:old' })).toBeDefined()
+  await ui.press({ key: 'forget-stack:old' })
+  await tick()
+  pending[0]!(answered([{ kind: 'stack', scope: 'project', subject: 'Supabase', text: 'uses it for everything' }]))
+  await tick()
+  expect(await ui.find({ key: 'forget-stack:old' })).toBeUndefined()
+  expect(await ui.find({ key: 'forget-stack:supabase' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\u2728/ })).toBeDefined()
+  await ui.unmount()
 })

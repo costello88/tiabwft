@@ -4,8 +4,10 @@ import type { On } from 'claude-code'
 const files = new Map<string, string>()
 // The engine resolves paths for the platform (C:/repo/x on Windows); the stand-ins key them as /repo/x.
 const key = (path: string): string => path.split(String.fromCharCode(92)).join('/').replace(/^[A-Za-z]:/, '')
+let seed: Record<string, unknown> = {}
 const engine = (on: On) => {
-  mock.store(on)
+  mock.store(on, seed)
+  seed = {}
   on('prompt.compose', async () => ({ sections: [{ id: 'intro', text: 'You are Claude.', scope: 'shared' as const }] }))
   on('turn.complete', async () => ({ text: '' }))
   on('session.start', async (_$, e) => ({ cwd: e.cwd }))
@@ -46,5 +48,83 @@ test('the panel says memory is off', { options: { memory: 'off' } }, async ($, o
   const ui = await $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
   expect((await ui.find({ type: 'Text', text: /Memory is off/ }))?.text).toContain('Memory is off')
   expect(await ui.find({ type: 'Text', text: /What I know/ })).toBeUndefined()
+  await ui.unmount()
+})
+
+declare const setTimeout: (fn: () => void, ms: number) => unknown
+const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 25))
+const mem = (facts: object[]) => ({ facts, tombstones: {} })
+const personalFact = (kind: string, scope: string, subject: string, firstSeen = 1) =>
+  ({ id: `${kind}:${subject.toLowerCase()}`, kind, scope, subject, text: `${subject} text`, source: 'conversation', firstSeen, lastSeen: 1 })
+const mountPane = ($: any) => $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
+
+test('two quick forget presses on different facts delete both', async ($, on) => {
+  files.clear()
+  seed = { 'memory.personal': mem([personalFact('stack', 'personal', 'Alpha'), personalFact('stack', 'personal', 'Beta'), personalFact('stack', 'personal', 'Gamma')]) }
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const ui = await mountPane($)
+  const first = ui.press({ key: 'forget-stack:alpha' })
+  const second = ui.press({ key: 'forget-stack:beta' })
+  await first
+  await second
+  await tick()
+  expect(await ui.find({ key: 'forget-stack:alpha' })).toBeUndefined()
+  expect(await ui.find({ key: 'forget-stack:beta' })).toBeUndefined()
+  expect(await ui.find({ key: 'forget-stack:gamma' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a fact with a broken date still renders the pane', async ($, on) => {
+  files.clear()
+  seed = { 'memory.personal': mem([personalFact('stack', 'personal', 'Nan', Number.NaN), personalFact('stack', 'personal', 'Huge', 1e16), personalFact('stack', 'personal', 'Fine')]) }
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const ui = await mountPane($)
+  expect(await ui.find({ type: 'Text', text: /What I know/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Huge/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Fine/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('personal and project facts get their own icons, env facts have no forget button', async ($, on) => {
+  files.clear()
+  files.set('/repo/package.json', JSON.stringify({ dependencies: { stripe: '1' } }))
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  seed = { 'memory.personal': mem([personalFact('constraint', 'personal', 'Budget')]) }
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const ui = await mountPane($)
+  expect(await ui.find({ type: 'Text', text: /\u{1F464} Budget/u })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\u{1F5C2}\uFE0F? Zapier/u })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Stripe/ })).toBeDefined()
+  expect(await ui.find({ key: 'forget-stack:stripe' })).toBeUndefined()
+  expect(await ui.find({ key: 'forget-constraint:budget' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the section shows next to a suggestion too', async ($, on) => {
+  files.clear()
+  seed = { 'memory.personal': mem([personalFact('stack', 'personal', 'Alpha')]) }
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await $.turn.complete({ answer: "ok\n\n**\u{1F4A1} There's a better way**\n\nGoal: ship faster\n\nStart here: connect GitHub", durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never)
+  const ui = await mountPane($)
+  expect(await ui.find({ type: 'Markdown' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /What I know/ })).toBeDefined()
+  expect(await ui.find({ key: 'forget-stack:alpha' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('45 facts show 40 and a "+5 more" line', async ($, on) => {
+  files.clear()
+  const many = Array.from({ length: 45 }, (_, i) => personalFact('stack', 'personal', `Tool${String(i).padStart(2, '0')}`))
+  seed = { 'memory.personal': mem(many) }
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const ui = await mountPane($)
+  expect(await ui.find({ type: 'Text', text: /\+5 more \(see \/tiabwft memory\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Tool39 text/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Tool40 text/ })).toBeUndefined()
   await ui.unmount()
 })

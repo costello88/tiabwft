@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Fact, Memory, Suggestion } from '../types'
-import { combine, emptyMemory } from './memory/facts'
+import { combine, deleteFact, emptyMemory } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
-import { applyLearned, forgetById, learn, loadAll, persistAll } from './memory/session'
+import { applyLearned, learn, loadAll, persistAll } from './memory/session'
 import type { MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
@@ -127,10 +127,47 @@ const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, 
   fileExisted = fileExisted || project.facts.some(f => f.source !== 'env')
 }
 
-const sourceLabel = (f: Fact): string => {
-  const date = new Date(f.firstSeen).toISOString().slice(0, 10)
+type MemoryPair = { personal: Memory; project: Memory }
 
-  return f.source === 'env' ? f.text : f.source === 'user' ? `you added, ${date}` : `you said, ${date}`
+// Every memory change runs one after another on this chain, so two changes never overwrite each other.
+let memoryQueue: Promise<unknown> = Promise.resolve()
+
+export const mutateMemory = (
+  $: EngineInterface,
+  options: Record<string, unknown>,
+  change: (personal: Memory, project: Memory) => MemoryPair | Promise<MemoryPair>,
+): Promise<MemoryPair | undefined> => {
+  const run = async (): Promise<MemoryPair | undefined> => {
+    try {
+      const next = await change(await read($, personalAtom), await read($, projectAtom))
+      await saveMemory($, options, next.personal, next.project)
+
+      return next
+    } catch {
+      return undefined
+    }
+  }
+  const result = memoryQueue.then(run, run)
+  memoryQueue = result
+
+  return result
+}
+
+const MAX_SHOWN = 40
+
+const sourceLabel = (f: Fact): string => {
+  if (f.source === 'env') {
+    return f.text
+  }
+  let date = ''
+  try {
+    date = new Date(f.firstSeen).toISOString().slice(0, 10)
+  } catch {
+    date = ''
+  }
+  const label = f.source === 'user' ? 'you added' : 'you said'
+
+  return date === '' ? label : `${label}, ${date}`
 }
 
 export const register: Register = (on, options) => {
@@ -198,8 +235,7 @@ export const register: Register = (on, options) => {
             const deps = await memoryDeps($, options)
             const learned = await learn(deps, prompt, answer, await read($, personalAtom), await read($, projectAtom))
             if (learned.fresh.length > 0) {
-              const merged = applyLearned({ personal: await read($, personalAtom), project: await read($, projectAtom) }, learned)
-              await saveMemory($, options, merged.personal, merged.project)
+              await mutateMemory($, options, (personal, project) => applyLearned({ personal, project }, learned))
             }
             await update($, freshAtom, () => learned.fresh)
           } catch {
@@ -226,7 +262,7 @@ export const register: Register = (on, options) => {
       <Box key="memory" flexDirection="column">
         <Text key="mem-title">🧠 What I know</Text>
         {known.length === 0 && <Text key="mem-empty" dimColor>Nothing yet. Tell me what you use or want, and it lands here.</Text>}
-        {known.map(f => (
+        {known.slice(0, MAX_SHOWN).map(f => (
           <Box key={`fact-${f.id}`} flexDirection="row">
             <Text key={`text-${f.id}`}>{`${fresh.has(f.id) ? '✨ ' : ''}${f.scope === 'personal' ? '👤' : '🗂️'} ${f.subject}: ${f.text}`}</Text>
             <Text key={`src-${f.id}`} dimColor>{` · ${sourceLabel(f)} `}</Text>
@@ -237,10 +273,11 @@ export const register: Register = (on, options) => {
                 key={`forget-${f.id}`}
                 plain
                 onPress={() => {
-                  void (async () => {
-                    const next = forgetById(await read($, personalAtom), await read($, projectAtom), f.id, Date.now())
-                    await saveMemory($, options, next.personal, next.project)
-                  })()
+                  void mutateMemory($, options, (personal, project) =>
+                    f.scope === 'personal'
+                      ? { personal: deleteFact(personal, f.id, Date.now()), project }
+                      : { personal, project: deleteFact(project, f.id, Date.now()) },
+                  )
                 }}
               >
                 ✕
@@ -248,6 +285,7 @@ export const register: Register = (on, options) => {
             )}
           </Box>
         ))}
+        {known.length > MAX_SHOWN && <Text key="mem-more" dimColor>{`+${known.length - MAX_SHOWN} more (see /tiabwft memory)`}</Text>}
         {unreadable > 0 && <Text key="mem-unreadable" dimColor>{`${unreadable} line(s) in .claude/tiabwft/memory.md couldn't be read and were skipped.`}</Text>}
       </Box>
     )
