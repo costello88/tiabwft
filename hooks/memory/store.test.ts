@@ -3,8 +3,8 @@ import { expect, test } from 'claude-code/testing'
 import type { Memory } from '../../types'
 import { factId } from './facts'
 import {
-  addSuggested, azureLoad, azureSave, leftOutOfAzure, loadLastSync, loadPersonal, loadProject, loadSuggested, projectPartition,
-  PROJECT_FILE, saveLastSync, saveProject, savePersonal,
+  addSuggested, azureLoad, azureSave, lastSyncKey, leftOutOfAzure, loadLastSync, loadPersonal, loadProject, loadSuggested, projectPartition,
+  PROJECT_FILE, readGitConfig, saveLastSync, saveProject, savePersonal,
 } from './store'
 
 const memFiles = (initial: Record<string, string> = {}) => {
@@ -106,13 +106,51 @@ test('leftOutOfAzure counts the facts past the cap', async () => {
   expect(leftOutOfAzure(one)).toBe(0)
 })
 
-test('the last sync round-trips per partition and rejects bad values', async () => {
+test('the last sync round-trips per partition and checkout, and rejects bad values', async () => {
   const { kv, data } = memKV()
-  await saveLastSync(kv, 'project:a/b', { at: 5, ids: ['stack:x'] })
-  expect(await loadLastSync(kv, 'project:a/b')).toEqual({ at: 5, ids: ['stack:x'] })
-  expect(await loadLastSync(kv, 'project:c/d')).toBeUndefined()
-  data.set('memory.lastSync.project:c/d', { at: 'soon', ids: [] })
-  expect(await loadLastSync(kv, 'project:c/d')).toBeUndefined()
+  await saveLastSync(kv, 'project:a/b', '/work/one', { at: 5, ids: ['stack:x'] })
+  expect(await loadLastSync(kv, 'project:a/b', '/work/one')).toEqual({ at: 5, ids: ['stack:x'] })
+  // The same root written another way is the same checkout.
+  expect(await loadLastSync(kv, 'project:a/b', '/work/one/')).toEqual({ at: 5, ids: ['stack:x'] })
+  // Another clone of the same repo, or another repo in the same folder: no record.
+  expect(await loadLastSync(kv, 'project:a/b', '/work/two')).toBeUndefined()
+  expect(await loadLastSync(kv, 'project:c/d', '/work/one')).toBeUndefined()
+  expect([...data.keys()]).toEqual([await lastSyncKey('project:a/b', '/work/one')])
+  expect(await lastSyncKey('project:a/b', '/work/one')).toMatch(/^memory\.lastSync\.project:a\/b@[0-9a-f]{8}$/)
+  data.set(await lastSyncKey('project:c/d', '/work/one'), { at: 'soon', ids: [] })
+  expect(await loadLastSync(kv, 'project:c/d', '/work/one')).toBeUndefined()
+})
+
+const CONFIG = '[core]\n\tbare = false\n[remote "origin"]\n\turl = git@github.com:Costello88/shop.git\n'
+
+test('readGitConfig follows a worktree .git file to the shared config', async () => {
+  const { files } = memFiles({
+    '/src/shop/.git/config': CONFIG,
+    // git worktree add: the gitdir has a commondir file pointing back at the repo's .git.
+    '/src/shop-review/.git': 'gitdir: /src/shop/.git/worktrees/shop-review\n',
+    '/src/shop/.git/worktrees/shop-review/commondir': '../..\n',
+    // A worktree whose gitdir has no commondir: <repo>/.git/worktrees/<name> means <repo>/.git.
+    '/src/shop-fix/.git': 'gitdir: ../shop/.git/worktrees/shop-fix',
+    // Windows paths, with the gitdir written with backslashes.
+    'C:/code/shop/.git/config': CONFIG,
+    'C:/code/shop-win/.git': 'gitdir: C:\\code\\shop\\.git\\worktrees\\shop-win\r\n',
+    // A submodule: its own git dir holds its own config.
+    '/src/shop/lib/.git': 'gitdir: ../.git/modules/lib\n',
+    '/src/shop/.git/modules/lib/config': '[remote "origin"]\n\turl = https://gitlab.com/team/lib.git\n',
+    '/src/broken/.git': 'not a pointer\n',
+  })
+  expect(await readGitConfig(files, '/src/shop')).toBe(CONFIG)
+  expect(await readGitConfig(files, '/src/shop-review')).toBe(CONFIG)
+  expect(await readGitConfig(files, '/src/shop-fix/')).toBe(CONFIG)
+  expect(await readGitConfig(files, 'C:\\code\\shop-win')).toBe(CONFIG)
+  expect(await readGitConfig(files, '/src/shop/lib')).toContain('gitlab.com/team/lib')
+  expect(await readGitConfig(files, '/src/broken')).toBeUndefined()
+  expect(await readGitConfig(files, '/src/none')).toBeUndefined()
+  // So every worktree of the repo lands in the repo's partition.
+  const main = await projectPartition('/src/shop', await readGitConfig(files, '/src/shop'))
+  expect(main).toBe('project:costello88/shop')
+  expect(await projectPartition('/src/shop-review', await readGitConfig(files, '/src/shop-review'))).toBe(main)
+  expect(await projectPartition('/src/shop-fix', await readGitConfig(files, '/src/shop-fix'))).toBe(main)
 })
 
 test('projectPartition: same-named folders differ, and spaces or other characters never reach the partition', async () => {

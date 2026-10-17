@@ -5,13 +5,12 @@ import type { Fact, Memory } from '../../types'
 import { emptyMemory, factId, mergeMemories } from './facts'
 import { applyLearned, forgetById, forgetMatching, learn, loadAll, persistAll, rememberText } from './session'
 import type { Loaded, MemoryDeps } from './session'
-import { addSuggested, PROJECT_FILE, projectPartition } from './store'
+import { addSuggested, lastSyncKey, PROJECT_FILE, projectPartition } from './store'
 
 const replyWith = (json: object) => async (): Promise<ModelCompleteResult> => ({ isAnswered: true, text: JSON.stringify(json), usage: { input_tokens: 1, output_tokens: 1 } } as ModelCompleteResult)
 
-const makeDeps = (over: Partial<MemoryDeps> = {}, files: Record<string, string> = {}) => {
+const makeDeps = (over: Partial<MemoryDeps> = {}, files: Record<string, string> = {}, store = new Map<string, unknown>()) => {
   const data = new Map(Object.entries(files))
-  const store = new Map<string, unknown>()
   const deps: MemoryDeps = {
     root: '/repo',
     files: {
@@ -197,7 +196,7 @@ const withMtime = (deps: MemoryDeps, mtime: number): MemoryDeps => ({ ...deps, f
 
 // This machine synced at T - 1000, holding the given facts; the file changed at T.
 const syncedBefore = async (store: Map<string, unknown>, ids: string[]) => {
-  store.set(`memory.lastSync.${await projectPartition('/repo')}`, { at: T - 1000, ids })
+  store.set(await lastSyncKey(await projectPartition('/repo'), '/repo'), { at: T - 1000, ids })
 }
 
 test('with Azure, a fact deleted by hand after the last sync stays deleted', async () => {
@@ -249,7 +248,7 @@ test('the first sync on a new machine is a plain merge: nothing counts as delete
 
 test('a successful Azure save records the last sync; a failed one does not', async () => {
   const project: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', 5)], tombstones: {} }
-  const key = `memory.lastSync.${await projectPartition('/repo')}`
+  const key = await lastSyncKey(await projectPartition('/repo'), '/repo')
   const ok = makeDeps({ azure: azureWith(emptyMemory()), now: () => 777 })
   await persistAll(ok.deps, { projectFile: 'commit' }, emptyMemory(), project, { existed: false })
   expect(ok.store.get(key)).toEqual({ at: 777, ids: [factId('rejection', 'Zapier')] })
@@ -288,12 +287,19 @@ const sharedAzure = () => {
   return { azure, held: () => held }
 }
 
-// One machine: its own files with mtimes, its own store, and a clock the test moves.
-const machine = (azure: MemoryDeps['azure'], fileText?: string) => {
+// One checkout: its own files with mtimes, its own store (or one shared with another
+// checkout on the same computer), and a clock the test moves.
+type Checkout = { root?: string; store?: Map<string, unknown>; gitConfig?: string }
+const machine = (azure: MemoryDeps['azure'], fileText?: string, checkout: Checkout = {}) => {
   let clock = T
-  const path = `/repo/${PROJECT_FILE}`
+  const root = checkout.root ?? '/repo'
+  const path = `${root}/${PROJECT_FILE}`
   const mtimes = new Map<string, number>()
-  const { deps, data } = makeDeps({ azure, now: () => clock }, fileText === undefined ? {} : { [path]: fileText })
+  const initial: Record<string, string> = {
+    ...(fileText === undefined ? {} : { [path]: fileText }),
+    ...(checkout.gitConfig === undefined ? {} : { [`${root}/.git/config`]: checkout.gitConfig }),
+  }
+  const { deps, data } = makeDeps({ root, azure, now: () => clock }, initial, checkout.store)
   if (fileText !== undefined) {
     mtimes.set(path, clock)
   }
@@ -390,4 +396,69 @@ test('a new machine syncing for the first time takes everything in Azure', async
   fresh.touch()
   expect(subjects(await fresh.start())).toEqual(['Supabase', 'Zapier'])
   expect(held().tombstones).toEqual({})
+})
+
+const GIT = '[remote "origin"]\n\turl = https://github.com/costello88/shop.git\n'
+
+test('two clones of one repo on one computer: the second clone does a plain first sync, and nothing is tombstoned', async () => {
+  const { azure, held } = sharedAzure()
+  const store = new Map<string, unknown>()
+  const c1 = machine(azure, BASE, { root: '/work/shop', store, gitConfig: GIT })
+  c1.at(T)
+  await c1.start()
+  c1.at(T + HOUR)
+  await c1.learn('Supabase', 'auth and database')
+  // A second clone of the committed file, which lacks Supabase; cloned after C1's sync.
+  const c2 = machine(azure, BASE, { root: '/work/shop-review', store, gitConfig: GIT })
+  c2.at(T + 2 * HOUR)
+  c2.touch()
+  c2.at(T + 3 * HOUR)
+  expect(subjects(await c2.start())).toEqual(['Supabase', 'Zapier'])
+  expect(c2.data.get(`/work/shop-review/${PROJECT_FILE}`)).toContain('- Supabase: auth and database')
+  expect(held().tombstones).toEqual({})
+  c1.at(T + 4 * HOUR)
+  expect(subjects(await c1.start())).toEqual(['Supabase', 'Zapier'])
+  expect(held().tombstones).toEqual({})
+  // One partition, one record per checkout.
+  const partition = await projectPartition('/work/shop', GIT)
+  expect(partition).toBe('project:costello88/shop')
+  expect([...store.keys()].filter(k => k.startsWith('memory.lastSync.')).sort())
+    .toEqual([await lastSyncKey(partition, '/work/shop'), await lastSyncKey(partition, '/work/shop-review')].sort())
+})
+
+test('the last sync is recorded when the file was written or already held the same text', async () => {
+  const canonical = '<!-- tiabwft memory: edit freely, one fact per line -->\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'
+  const key = await lastSyncKey(await projectPartition('/repo'), '/repo')
+  const unchanged = makeDeps({ azure: azureWith(emptyMemory()), now: () => 777 }, { [`/repo/${PROJECT_FILE}`]: canonical })
+  const loaded = await loadAll(unchanged.deps)
+  await persistAll(unchanged.deps, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
+  expect(unchanged.data.get(`/repo/${PROJECT_FILE}`)).toBe(canonical)
+  expect(unchanged.store.get(key)).toEqual({ at: 777, ids: [factId('rejection', 'Zapier')] })
+})
+
+test('no last sync is recorded when the file could not be read or the write failed; the previous record stays', async () => {
+  const key = await lastSyncKey(await projectPartition('/repo'), '/repo')
+  const previous = { at: 5, ids: [factId('rejection', 'Zapier')] }
+  const project: Memory = { facts: [remoteFact('stack', 'Supabase', 'auth', 9)], tombstones: {} }
+  // The read failed: the file is left alone, so it does not hold what went to Azure.
+  const unread = makeDeps({ azure: azureWith(emptyMemory()), now: () => 777 }, { [`/repo/${PROJECT_FILE}`]: 'precious' })
+  unread.store.set(key, previous)
+  const locked = { ...unread.deps, files: { ...unread.deps.files, read: async (p: string) => { if (p.endsWith('memory.md')) throw new Error('locked'); return unread.deps.files.read(p) } } }
+  const loaded = await loadAll(locked)
+  expect(loaded.file.readFailed).toBe(true)
+  await persistAll(locked, { projectFile: 'commit' }, loaded.personal, project, loaded.file)
+  expect(unread.store.get(key)).toEqual(previous)
+  // The write threw: Azure has the memory, the file does not.
+  const puts: string[] = []
+  const unwritten = makeDeps({ azure: azureWith(emptyMemory(), puts), now: () => 777 })
+  unwritten.store.set(key, previous)
+  const failing = { ...unwritten.deps, files: { ...unwritten.deps.files, write: async () => { throw new Error('disk full') } } }
+  await persistAll(failing, { projectFile: 'commit' }, emptyMemory(), project, { existed: false })
+  expect(puts.some(p => p.includes('partition=project'))).toBe(true)
+  expect(unwritten.store.get(key)).toEqual(previous)
+  // Without a previous record none is made either.
+  const fresh = makeDeps({ azure: azureWith(emptyMemory()) })
+  const failingFresh = { ...fresh.deps, files: { ...fresh.deps.files, write: async () => { throw new Error('disk full') } } }
+  await persistAll(failingFresh, { projectFile: 'commit' }, emptyMemory(), project, { existed: false })
+  expect(fresh.store.has(key)).toBe(false)
 })

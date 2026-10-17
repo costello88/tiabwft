@@ -5,7 +5,7 @@ import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
   addSuggested, azureLoad, azureSave, leftOutOfAzure, loadLastSync, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition,
-  saveLastSync, saveProject, savePersonal,
+  readGitConfig, saveLastSync, saveProject, savePersonal,
 } from './store'
 import type { AzureConfig, Fetch, Files, KV } from './store'
 
@@ -29,7 +29,7 @@ const AZURE_TIMEOUT_MS = 2000
 const AZURE_SAVE_TIMEOUT_MS = 5000
 
 const partitionFor = async (deps: MemoryDeps): Promise<string> =>
-  projectPartition(deps.root, await deps.files.read(`${deps.root}/.git/config`).catch(() => undefined))
+  projectPartition(deps.root, await readGitConfig(deps.files, deps.root))
 
 export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
   const now = deps.now()
@@ -44,7 +44,7 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
       azureLoad(fetch, config, 'personal', AZURE_TIMEOUT_MS, sleep),
       partition.then(p => azureLoad(fetch, config, p, AZURE_TIMEOUT_MS, sleep)),
       fileRead && deps.files.mtime !== undefined ? deps.files.mtime(projectFilePath(deps.root)).catch(() => undefined) : Promise.resolve(undefined),
-      partition.then(p => loadLastSync(deps.kv, p)),
+      partition.then(p => loadLastSync(deps.kv, p, deps.root)),
     ])
     if (remotePersonal !== undefined) {
       personal = mergeMemories(personal, remotePersonal)
@@ -83,10 +83,14 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
   await savePersonal(deps.kv, personal).catch(() => undefined)
   let next = file
   const worthAFile = file.existed || project.facts.some(f => f.source !== 'env')
+  // True once the file holds exactly what goes to Azure: written, or already the same text.
+  // Without a file and nothing to put in one there is nothing to differ.
+  let fileMatches = !worthAFile
   if (worthAFile && file.readFailed !== true) {
     const text = await saveProject(deps.files, deps.root, project, options.projectFile, file.kept ?? [], file.text).catch(() => undefined)
     if (text !== undefined) {
       next = { ...file, existed: true, text }
+      fileMatches = true
     }
   }
   let leftOut = 0
@@ -99,10 +103,13 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
       bounded(azureSave(fetch, config, 'personal', personal)),
       bounded(partitionFor(deps).then(async partition => {
         const saved = await azureSave(fetch, config, partition, project)
-        if (saved) {
-          // What this machine held when Azure last had all of it: the next load's cutoff.
+        // Recorded only when Azure and the file both hold this memory, so every id in the
+        // record is in the file: a fact missing from it later was removed from the file.
+        // After a failed read or write the previous record stays.
+        if (saved && fileMatches) {
+          // What this checkout held when Azure last had all of it: the next load's cutoff.
           const ids = project.facts.filter(f => f.source !== 'env').map(f => f.id)
-          await saveLastSync(deps.kv, partition, { at: deps.now(), ids }).catch(() => undefined)
+          await saveLastSync(deps.kv, partition, deps.root, { at: deps.now(), ids }).catch(() => undefined)
         }
         return saved
       })),

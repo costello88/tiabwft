@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { projectPartition } from './store'
+import { lastSyncKey, projectPartition } from './store'
 
 const FACTS = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: ['terminal' as const], tools: [], outputStyle: null, traits: [] }
 const files = new Map<string, string>()
@@ -252,10 +252,10 @@ test('a forget press in the panel refreshes the prompt section', async ($, on) =
 
 const SYNC = { azureSyncUrl: 'https://x.azurewebsites.net/api/memory', azureSyncKey: 'k' }
 const fetched: string[] = []
-const azureEngine = (on: On, project: object, mtimeMs: number) => {
+const azureEngine = (on: On, project: object, mtime: number | (() => number)) => {
   engine(on)
   fetched.length = 0
-  on('fs.stat', async () => ({ value: { kind: 'file', size: 1, mtimeMs, isLink: false } as never }))
+  on('fs.stat', async () => ({ value: { kind: 'file', size: 1, mtimeMs: typeof mtime === 'number' ? mtime : mtime(), isLink: false } as never }))
   on('clock.sleep', () => new Promise(() => {}))
   on('http.fetch', async (_$, e) => {
     fetched.push(`${e.init?.method ?? 'GET'} ${e.url} ${e.init?.body ?? ''}`)
@@ -269,7 +269,7 @@ test('with Azure sync, a fact deleted by hand from memory.md after the last sync
   files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
   const T = Date.parse('2026-10-17T12:00:00Z')
   const make = { id: 'rejection:make', kind: 'rejection', scope: 'project', subject: 'Make', text: 'too fiddly', source: 'conversation', firstSeen: T - 5000, lastSeen: T - 5000 }
-  const lastSync = `memory.lastSync.${await projectPartition('/repo')}`
+  const lastSync = await lastSyncKey(await projectPartition('/repo'), '/repo')
   seed = { [lastSync]: { at: T - 1000, ids: ['rejection:zapier', 'rejection:make'] } }
   azureEngine(on, { facts: [make], tombstones: {} }, T)
   await $.session.start({ source: 'startup', cwd: '/repo' } as never)
@@ -277,6 +277,34 @@ test('with Azure sync, a fact deleted by hand from memory.md after the last sync
   expect((await runCommand($, 'memory')).text).not.toContain('Make')
   expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
   expect(fetched.some(f => f.startsWith('PUT') && f.includes('partition=project') && f.includes('"rejection:make":'))).toBe(true)
+})
+
+test('with Azure sync, a last-sync key holding /, : and @ round-trips through the store', { options: SYNC }, async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n- Make: too fiddly (said, 2026-10-17)\n')
+  files.set('/repo/.git/config', '[remote "origin"]\n\turl = https://gitlab.com/team/sub/shop.git\n')
+  const partition = await projectPartition('/repo', files.get('/repo/.git/config'))
+  expect(partition).toBe('project:gitlab.com/team/sub/shop')
+  const key = await lastSyncKey(partition, '/repo')
+  expect(/[/:@]/.test(key.slice('memory.lastSync.project'.length))).toBe(true)
+  const now = Date.now()
+  let mtime = now - 3600000
+  const remote: { facts: object[]; tombstones: object } = { facts: [], tombstones: {} }
+  azureEngine(on, remote, () => mtime)
+  // First start: no record yet, a plain merge; the save writes the record under the key.
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect(fetched.some(f => f.startsWith('PUT') && f.includes(encodeURIComponent(partition)))).toBe(true)
+  // Make is deleted by hand after that sync; Azure still has it.
+  remote.facts = [{ id: 'rejection:make', kind: 'rejection', scope: 'project', subject: 'Make', text: 'too fiddly', source: 'conversation', firstSeen: now - 3600000, lastSeen: now - 3600000 }]
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  mtime = Date.now() + 3600000
+  fetched.length = 0
+  // Second start: only a record read back from the store makes the deletion stick.
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
+  expect(fetched.some(f => f.startsWith('PUT') && f.includes(encodeURIComponent(partition)) && f.includes('"rejection:make":'))).toBe(true)
 })
 
 test('with Azure sync, the first start on a machine takes a remote fact the file lacks', { options: SYNC }, async ($, on) => {

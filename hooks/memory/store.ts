@@ -77,12 +77,6 @@ export const saveProject = async (
   return text
 }
 
-// Per partition: this machine's last successful Azure save (see LastSync in facts.ts).
-export const loadLastSync = async (kv: KV, partition: string): Promise<LastSync | undefined> =>
-  asLastSync(await kv.get(`${LAST_SYNC_PREFIX}${partition}`).catch(() => undefined))
-
-export const saveLastSync = (kv: KV, partition: string, sync: LastSync): Promise<void> => kv.set(`${LAST_SYNC_PREFIX}${partition}`, sync)
-
 export const loadSuggested = async (kv: KV): Promise<string[]> => {
   const value = await kv.get(SUGGESTED_KEY).catch(() => undefined)
   return Array.isArray(value) ? value.filter((s): s is string => typeof s === 'string') : []
@@ -157,6 +151,56 @@ export const projectPartition = async (root: string, gitConfig?: string): Promis
   const normal = normaliseRoot(root)
   const folder = (normal.split('/').filter(Boolean).pop() ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 60)
   return `project:${folder}-${await shortHash(normal)}`
+}
+
+// Per partition and per checkout: this checkout's last successful Azure save (see LastSync
+// in facts.ts). Two clones of one repo on one computer share a partition but not a file,
+// so each keeps its own record, and a new clone's first sync is a plain merge.
+export const lastSyncKey = async (partition: string, root: string): Promise<string> =>
+  `${LAST_SYNC_PREFIX}${partition}@${await shortHash(normaliseRoot(root))}`
+
+export const loadLastSync = async (kv: KV, partition: string, root: string): Promise<LastSync | undefined> =>
+  asLastSync(await kv.get(await lastSyncKey(partition, root)).catch(() => undefined))
+
+export const saveLastSync = async (kv: KV, partition: string, root: string, sync: LastSync): Promise<void> =>
+  kv.set(await lastSyncKey(partition, root), sync)
+
+const isAbsolute = (path: string): boolean => /^(?:[A-Za-z]:)?[\\/]/.test(path)
+
+// path against base, with forward slashes and "." and ".." resolved.
+const resolvePath = (base: string, path: string): string => {
+  const full = (isAbsolute(path) ? path : `${base}/${path}`).replace(/\\/g, '/')
+  const prefix = full.match(/^(?:[A-Za-z]:)?\/*/)?.[0] ?? ''
+  const out: string[] = []
+  for (const seg of full.slice(prefix.length).split('/')) {
+    if (seg === '..') {
+      out.pop()
+    } else if (seg !== '' && seg !== '.') {
+      out.push(seg)
+    }
+  }
+  return `${prefix}${out.join('/')}`
+}
+
+// The repo's git config. In a worktree (or a submodule) .git is a file, "gitdir: <path>":
+// the config is in the common git dir, named by <gitdir>/commondir, or for a worktree
+// gitdir <repo>/.git/worktrees/<name> it is <repo>/.git. So all worktrees of a repo share
+// its remote and so its partition.
+export const readGitConfig = async (files: Files, root: string): Promise<string | undefined> => {
+  const base = root.replace(/\\/g, '/').replace(/\/+$/, '')
+  const direct = await files.read(`${base}/.git/config`).catch(() => undefined)
+  if (direct !== undefined) {
+    return direct
+  }
+  const pointer = await files.read(`${base}/.git`).catch(() => undefined)
+  const gitdir = pointer?.match(/^\s*gitdir:\s*(.+?)\s*$/m)?.[1]
+  if (gitdir === undefined) {
+    return undefined
+  }
+  const dir = resolvePath(base, gitdir)
+  const common = (await files.read(`${dir}/commondir`).catch(() => undefined))?.trim()
+  const shared = common !== undefined && common !== '' ? resolvePath(dir, common) : dir.replace(/\/worktrees\/[^/]+$/, '')
+  return files.read(`${shared}/config`).catch(() => undefined)
 }
 
 const partitionUrl = (config: AzureConfig, partition: string): string =>
