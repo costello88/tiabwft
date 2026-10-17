@@ -99,7 +99,29 @@ export const learn = async (deps: MemoryDeps, prompt: string, answer: string, pe
   return { ...placed, fresh: result.facts.map(f => f.id).filter(id => kept.has(id)) }
 }
 
-export const forgetMatching = (personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
+// Merges only the freshly learned facts into the CURRENT memory, so a forget or another turn
+// that finished while the reader was running is kept.
+export const applyLearned = (
+  current: { personal: Memory; project: Memory },
+  learned: { personal: Memory; project: Memory; fresh: readonly string[] },
+): { personal: Memory; project: Memory } => {
+  const fresh = new Set(learned.fresh)
+  let personal = current.personal
+  let project = current.project
+  for (const f of learned.personal.facts) {
+    if (fresh.has(f.id)) {
+      personal = mergeFact(personal, f)
+    }
+  }
+  for (const f of learned.project.facts) {
+    if (fresh.has(f.id)) {
+      project = mergeFact(project, f)
+    }
+  }
+  return { personal, project }
+}
+
+export const forgetMatching =(personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
   const needle = text.trim().toLowerCase()
   const hits = (m: Memory) => m.facts.filter(f => f.source !== 'env' && needle !== '' && `${f.subject} ${f.text}`.toLowerCase().includes(needle))
   const removed = [...hits(personal), ...hits(project)]

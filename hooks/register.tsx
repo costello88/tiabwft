@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Memory, Suggestion } from '../types'
 import { emptyMemory } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
-import { learn, loadAll, persistAll } from './memory/session'
+import { applyLearned, learn, loadAll, persistAll } from './memory/session'
 import type { MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
@@ -140,12 +140,17 @@ export const register: Register = (on, options) => {
       void $.ui.open({ id: PANE, title: PANE_TITLE })
     }
     if (memoryOn && protocol !== undefined) {
+      fileExisted = false
+      readFailed = false
       try {
         const loaded = await loadAll(await memoryDeps($, options))
         fileExisted = loaded.fileExisted
         readFailed = loaded.readFailed === true
         await update($, unreadableAtom, () => loaded.unreadable)
-        await saveMemory($, options, loaded.personal, loaded.project)
+        await update($, personalAtom, () => loaded.personal)
+        await update($, projectAtom, () => loaded.project)
+        // The persist may wait on Azure for seconds; session start does not.
+        void saveMemory($, options, loaded.personal, loaded.project).catch(() => undefined)
       } catch {
         // Memory is best effort: tiabwft works without it.
       }
@@ -164,6 +169,11 @@ export const register: Register = (on, options) => {
 
   // Keeps the latest 💡 block of the main loop for the side panel.
   on('turn.complete', async ($, e, next) => {
+    let prompt = ''
+    if (e.agentId === undefined) {
+      prompt = prompts.get(e.turnId) ?? ''
+      prompts.delete(e.turnId)
+    }
     const done = await next(e)
     if (e.agentId === undefined && !e.isAborted) {
       const found = extractSuggestion(e.answer, Date.now())
@@ -171,16 +181,18 @@ export const register: Register = (on, options) => {
         await update($, latest, () => found)
         await update($, count, n => n + 1)
       }
-      const prompt = prompts.get(e.turnId) ?? ''
-      prompts.delete(e.turnId)
-      if (memoryOn && protocol !== undefined && !(await read($, pausedAtom))) {
+      if (memoryOn && protocol !== undefined) {
         const answer = e.answer
         void (async () => {
           try {
+            if (await read($, pausedAtom)) {
+              return
+            }
             const deps = await memoryDeps($, options)
             const learned = await learn(deps, prompt, answer, await read($, personalAtom), await read($, projectAtom))
             if (learned.fresh.length > 0) {
-              await saveMemory($, options, learned.personal, learned.project)
+              const merged = applyLearned({ personal: await read($, personalAtom), project: await read($, projectAtom) }, learned)
+              await saveMemory($, options, merged.personal, merged.project)
             }
             await update($, freshAtom, () => learned.fresh)
           } catch {

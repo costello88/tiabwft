@@ -3,7 +3,7 @@ import type { ModelCompleteResult } from 'claude-code'
 
 import type { Memory } from '../../types'
 import { emptyMemory, factId } from './facts'
-import { forgetById, forgetMatching, learn, loadAll, persistAll, rememberText } from './session'
+import { applyLearned, forgetById, forgetMatching, learn, loadAll, persistAll, rememberText } from './session'
 import type { MemoryDeps } from './session'
 import { addSuggested, PROJECT_FILE } from './store'
 
@@ -140,4 +140,14 @@ test('persistAll does not wait on a hanging Azure save', async () => {
   const { deps } = makeDeps({ azure: { config: { url: 'https://x', key: 'k' }, fetch: () => new Promise(() => {}), sleep: async ms => { waits.push(ms) } } })
   await persistAll(deps, { projectFile: 'commit' }, emptyMemory(), emptyMemory(), false)
   expect(waits).toContain(5000)
+})
+
+test('applyLearned merges only fresh facts into the current memory and keeps its other changes', async () => {
+  const { deps } = makeDeps({ complete: replyWith({ facts: [{ kind: 'rejection', scope: 'project', subject: 'Zapier', text: 'too expensive' }], suggested: [] }) })
+  const learned = await learn(deps, 'I never want Zapier again, it is far too expensive for me', 'ok', emptyMemory(), emptyMemory())
+  const current = { personal: emptyMemory(), project: { facts: [], tombstones: { 'stack:old': 5 } } as Memory }
+  const merged = applyLearned(current, learned)
+  expect(merged.project.facts.map(f => f.id)).toEqual([factId('rejection', 'Zapier')])
+  expect(merged.project.tombstones).toEqual({ 'stack:old': 5 })
+  expect(applyLearned(current, { ...learned, fresh: [] }).project.facts).toEqual([])
 })
