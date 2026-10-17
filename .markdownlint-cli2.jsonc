@@ -1,0 +1,16 @@
+// Lints skills/tiabwft/references/ for broken tables and malformed links only.
+// Style rules stay off so the weekly refresh PRs aren't blocked on formatting.
+{
+  "config": {
+    "default": false,
+    "MD011": true, // reversed link syntax (text)[url]
+    "MD039": true, // spaces inside link text
+    "MD042": true, // empty links
+    "MD045": true, // images without alt text
+    "MD051": true, // link fragments point at a real heading
+    "MD052": true, // reference links have a definition
+    "MD055": true, // table pipe style is consistent
+    "MD056": true  // every table row has the header's column count
+  },
+  "globs": ["skills/tiabwft/references/*.md"]
+}

@@ -52,6 +52,17 @@ Every turn, the hook also tells Claude which model is in use. It adds a tip when
 
 **Note:** where an organization manages Claude Code, system-prompt hooks only run for plugins the organization lists in managed settings.
 
+## Develop
+
+Every PR to `main` runs [CI](.github/workflows/ci.yml). To run the same checks locally:
+
+```bash
+claude plugin validate . && claude plugin test .
+npx markdownlint-cli2 && node scripts/check-references.mjs
+```
+
+`check-references.mjs` fetches every `Source:` URL in the references and fails on a 404, so a refresh can't cite a page that doesn't exist.
+
 ## Roadmap
 
 - v2: a side panel that always shows the latest optimization suggestion.

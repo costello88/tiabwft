@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugin:
+    name: Validate plugin and run hook tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      # Reads marketplace.json, plugin.json, the types contract, SKILL.md frontmatter and hooks.
+      - name: Validate plugin and marketplace manifests
+        run: claude plugin validate .
+      - name: Run hook tests (hooks/register.test.ts)
+        run: claude plugin test .
+
+  references:
+    name: Lint reference tables and links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Lint markdown tables and link syntax
+        run: npx --yes markdownlint-cli2@0.18.1
+      - name: Check source URLs and relative links
+        run: node scripts/check-references.mjs
