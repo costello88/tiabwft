@@ -4,14 +4,37 @@ Optional. Syncs tiabwft's memory across your computers and cloud sessions. One A
 
 ## Deploy (Azure CLI + Azure Functions Core Tools)
 
+Make a strong key first. The endpoint has no rate limit, so use a long random one:
+
+```bash
+openssl rand -hex 32
+```
+
+PowerShell: `[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')`
+
+Keep it somewhere safe (it will also sit in your shell history).
+
 ```bash
 az login
 az group create --name tiabwft-rg --location westeurope
 az storage account create --name tiabwftmem<unique> --resource-group tiabwft-rg --sku Standard_LRS
-az functionapp create --name tiabwft-memory-<unique> --resource-group tiabwft-rg --storage-account tiabwftmem<unique> --consumption-plan-location westeurope --runtime node --runtime-version 20 --functions-version 4
-az functionapp config appsettings set --name tiabwft-memory-<unique> --resource-group tiabwft-rg --settings TIABWFT_KEY=<a long random string> TIABWFT_STORAGE="<connection string from: az storage account show-connection-string --name tiabwftmem<unique> --resource-group tiabwft-rg --query connectionString -o tsv>"
+az functionapp create --name tiabwft-memory-<unique> --resource-group tiabwft-rg --storage-account tiabwftmem<unique> --consumption-plan-location westeurope --runtime node --runtime-version 22 --functions-version 4 --https-only true
+```
+
+Store the storage connection string in a variable, then set the app settings:
+
+```bash
+CONN=$(az storage account show-connection-string --name tiabwftmem<unique> --resource-group tiabwft-rg --query connectionString -o tsv)
+az functionapp config appsettings set --name tiabwft-memory-<unique> --resource-group tiabwft-rg --settings TIABWFT_KEY=<your key> TIABWFT_STORAGE="$CONN"
+```
+
+Publish (this leaves you in the `azure/` folder):
+
+```bash
 cd azure && npm install && func azure functionapp publish tiabwft-memory-<unique>
 ```
+
+If the function app already exists, enable HTTPS-only with `az functionapp update --name tiabwft-memory-<unique> --resource-group tiabwft-rg --set httpsOnly=true`.
 
 ## Connect tiabwft
 
