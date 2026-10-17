@@ -83,3 +83,17 @@ test('azureSave sends the memory with PUT and reports success', async () => {
   expect(JSON.parse(body)).toEqual(one)
   expect(await azureSave(async () => { throw new Error('offline') }, { url: 'https://x', key: 'k' }, 'personal', one)).toBe(false)
 })
+
+test('azureSave sends only the 400 newest tombstones from the last 180 days', async () => {
+  const day = 24 * 60 * 60 * 1000
+  const now = 1000 * day
+  const tombstones: Record<string, number> = { old: now - 200 * day }
+  for (let i = 0; i < 450; i++) tombstones[`t${i}`] = now - i
+  let body = ''
+  await azureSave(async (_url, init) => { body = init?.body ?? ''; return { ok: true, status: 204, text: '' } }, { url: 'https://x', key: 'k' }, 'personal', { facts: [], tombstones }, now)
+  const sent = JSON.parse(body) as { tombstones: Record<string, number> }
+  expect(Object.keys(sent.tombstones).length).toBe(400)
+  expect('old' in sent.tombstones).toBe(false)
+  expect('t0' in sent.tombstones).toBe(true)
+  expect('t449' in sent.tombstones).toBe(false)
+})

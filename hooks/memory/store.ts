@@ -96,12 +96,25 @@ export const azureLoad = async (
   }
 }
 
-export const azureSave = async (fetch: Fetch, config: AzureConfig, partition: string, memory: Memory): Promise<boolean> => {
+const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000
+const TOMBSTONE_MAX = 400
+
+// Old deletions have long reached every machine; sending them all would one day
+// exceed the function's 500-tombstone limit and stop sync for good.
+export const recentTombstones = (tombstones: Record<string, number>, now: number): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(tombstones)
+      .filter(([, at]) => now - at <= TOMBSTONE_MAX_AGE_MS)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, TOMBSTONE_MAX),
+  )
+
+export const azureSave = async (fetch: Fetch, config: AzureConfig, partition: string, memory: Memory, now: number = Date.now()): Promise<boolean> => {
   try {
     const response = await fetch(partitionUrl(config, partition), {
       method: 'PUT',
       headers: { 'x-tiabwft-key': config.key, 'content-type': 'application/json' },
-      body: JSON.stringify(memory),
+      body: JSON.stringify({ facts: memory.facts, tombstones: recentTombstones(memory.tombstones, now) }),
     })
     return response.ok
   } catch {

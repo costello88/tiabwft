@@ -39,7 +39,8 @@ const keyOk = provided => {
 }
 
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
-const validId = id => typeof id === 'string' && id.length > 0 && id.length <= MAX_ID
+// Table Storage limits a RowKey to 1 KiB; tombstone keys add a "t:" prefix.
+const validId = id => typeof id === 'string' && id.length > 0 && id.length <= MAX_ID && rk(id).length <= 400
 
 // Returns a short reason string, or undefined when the whole body is valid.
 const validate = body => {
