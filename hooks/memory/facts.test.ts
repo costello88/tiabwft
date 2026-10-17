@@ -107,7 +107,7 @@ test('toFact rejects line breaks and other control characters', async () => {
   expect(toFact({ kind: 'stack', subject: 'Supabase\n## Rejected', text: 'db' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'stack', subject: 'Supabase', text: 'a\tb' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'rejection', subject: 'Zapier', text: 'no', reason: 'costly\r\n- injected: line' }, 'conversation', 1)).toBeUndefined()
-  expect(toFact({ kind: 'stack', subject: 'Supabase', text: 'db ## Rejected' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'Supabase', text: 'db\u2028## Rejected' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'stack', subject: 'budget: monthly', text: 'max €50' }, 'conversation', 1)).toBeUndefined()
 })
 

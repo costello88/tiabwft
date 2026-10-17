@@ -26,7 +26,7 @@ const isKind = (value: unknown): value is FactKind => typeof value === 'string' 
 const sameSubject = (a: Fact, b: Fact): boolean => normaliseSubject(a.subject) === normaliseSubject(b.subject)
 
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001F\u007F\u0085  ]/
+const CONTROL_CHARS = /[\u0000-\u001F\u007F\u0085\u2028\u2029]/
 
 // Validates anything that claims to be a fact (the reader's JSON, a stored row) and
 // returns a clean Fact, or undefined when any rule fails.
