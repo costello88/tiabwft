@@ -130,6 +130,13 @@ type MemoryPair = { personal: Memory; project: Memory }
 // True only after a session-start load succeeded. Until then nothing may be written: the files may exist unread.
 let memoryLoaded = false
 
+// The memory section of the system prompt, as a snapshot. A changed system prompt
+// rewrites the whole cached conversation, so the section is taken once at session start
+// and refreshed only by an explicit user change (remember, forget, reset, a ✕ press).
+// Background learning reaches the prompt at the next session; this session already
+// holds the user's words.
+let memorySection: string | undefined
+
 // Every memory change runs one after another on this chain, so two changes never overwrite each other.
 let memoryQueue: Promise<unknown> = Promise.resolve()
 
@@ -137,6 +144,7 @@ export const mutateMemory = (
   $: EngineInterface,
   options: Record<string, unknown>,
   change: (personal: Memory, project: Memory) => MemoryPair | Promise<MemoryPair>,
+  refreshPrompt = false,
 ): Promise<MemoryPair | undefined> => {
   const run = async (): Promise<MemoryPair | undefined> => {
     if (!memoryLoaded) {
@@ -145,6 +153,9 @@ export const mutateMemory = (
     try {
       const next = await change(await read($, personalAtom), await read($, projectAtom))
       await saveMemory($, options, next.personal, next.project)
+      if (refreshPrompt) {
+        memorySection = renderMemorySection(next.personal, next.project)
+      }
 
       return next
     } catch {
@@ -182,6 +193,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     // Every session starts unloaded, whichever branch below runs.
     memoryLoaded = false
+    memorySection = undefined
     await $.command.register({
       name: 'tiabwft',
       description: 'There is a better way for that: /tiabwft on|off|panel, /tiabwft memory [off|on|reset], /tiabwft forget <text>, /tiabwft remember <text>',
@@ -199,6 +211,7 @@ export const register: Register = (on, options) => {
         await update($, unreadableAtom, () => loaded.unreadable)
         await update($, personalAtom, () => loaded.personal)
         await update($, projectAtom, () => loaded.project)
+        memorySection = renderMemorySection(loaded.personal, loaded.project)
         memoryLoaded = true
         // Saves what the load merged (Azure, the env scan); the file is written only if
         // its text changed. The persist may wait on Azure for seconds; session start does not.
@@ -285,7 +298,7 @@ export const register: Register = (on, options) => {
                     f.scope === 'personal'
                       ? { personal: deleteFact(personal, f.id, Date.now()), project }
                       : { personal, project: deleteFact(project, f.id, Date.now()) },
-                  )
+                  true)
                 }}
               >
                 ✕
@@ -351,7 +364,7 @@ export const register: Register = (on, options) => {
         const done = await mutateMemory($, options, (personal, project) => ({
           personal,
           project: project.facts.filter(f => f.source !== 'env').reduce((m, f) => deleteFact(m, f.id, now), project),
-        }))
+        }), true)
 
         return done === undefined ? failed : { text: "This project's memory is deleted. Facts found in your files come back at the next start." }
       }
@@ -372,7 +385,7 @@ export const register: Register = (on, options) => {
           removed = r.removed
 
           return { personal: r.personal, project: r.project }
-        })
+        }, true)
         if (done === undefined) {
           return failed
         }
@@ -401,7 +414,7 @@ export const register: Register = (on, options) => {
         }
 
         return { personal: p, project: j }
-      })
+      }, true)
 
       return done === undefined ? failed : { text: `Remembered: ${added.map(f => `[${f.kind}] ${f.subject}`).join(', ')}` }
     }
@@ -439,8 +452,7 @@ export const register: Register = (on, options) => {
       rateLimitPercent: Math.max(0, ...(usage?.rateLimits ?? []).map(limit => limit.percentUsed)),
     })
 
-    const memorySection = memoryOn ? renderMemorySection(await read($, personalAtom), await read($, projectAtom)) : undefined
-    const text = [protocol, facts, memorySection].filter((part): part is string => part !== undefined).join('\n\n')
+    const text = [protocol, facts, memoryOn ? memorySection : undefined].filter((part): part is string => part !== undefined).join('\n\n')
 
     return {
       ...composed,

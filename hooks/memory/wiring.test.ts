@@ -71,6 +71,9 @@ test('memory=off adds no memory section', { options: { memory: 'off' } }, async 
   expect(text).not.toContain('What you know about this user')
 })
 
+const RUN = { origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 80 } }
+const runCommand = ($: any, args: string): Promise<{ text?: string }> => $.command.run({ command: 'tiabwft', args, ...RUN } as never)
+
 const runTurn = async ($: any, turnId: string, extra: object = {}, isAborted = false) => {
   await $.turn.start({ text: LONG, turnId, ...extra } as never)
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted, turnId, reason: 'answer', ...extra } as never)
@@ -129,7 +132,7 @@ test('a slow read does not overwrite what a later turn learned', async ($, on) =
   await tick()
   pending[0]!(answered([{ kind: 'rejection', scope: 'project', subject: 'Zapier', text: 'too expensive' }]))
   await tick()
-  const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  const text = (await runCommand($, 'memory')).text ?? ''
   expect(text).toContain('Supabase')
   expect(text).toContain('Zapier')
 })
@@ -176,4 +179,42 @@ test('unreadable lines survive a session start and a learn', async ($, on) => {
   const text = files.get('/repo/.claude/tiabwft/memory.md') ?? ''
   expect(text).toContain('- Supabase: uses it for everything')
   expect(text).toContain("## Couldn't read (kept as written)\n## Notes\n- free text\n")
+})
+
+test('background learning leaves the prompt section alone until the next session; remember refreshes it', async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  engine(on, false, '{"facts":[{"kind":"stack","scope":"project","subject":"Supabase","text":"uses it for everything"}],"suggested":[]}')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const before = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  await runTurn($, 'c1')
+  expect((await runCommand($, 'memory')).text).toContain('Supabase')
+  const after = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  expect(after).toBe(before)
+  expect(after).not.toContain('Supabase')
+  await runCommand($, 'remember never suggest Make, too fiddly')
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toContain('Supabase')
+})
+
+test('the next session start carries what was learned', async ($, on) => {
+  files.clear()
+  engine(on, false, '{"facts":[{"kind":"stack","scope":"project","subject":"Supabase","text":"uses it for everything"}],"suggested":[]}')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await runTurn($, 'c2')
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').not.toContain('Supabase')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toContain('Supabase')
+})
+
+test('a forget press in the panel refreshes the prompt section', async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toContain('- Zapier: too expensive')
+  const ui = await $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
+  await ui.press({ key: 'forget-rejection:zapier' })
+  await tick()
+  await ui.unmount()
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').not.toContain('- Zapier: too expensive')
 })
