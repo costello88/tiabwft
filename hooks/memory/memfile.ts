@@ -1,6 +1,9 @@
 import type { Fact, FactKind, FactSource, Memory } from '../../types'
 import { containsSecret, toFact } from './facts'
 
+// A plain code-unit comparison: the same memory must render the same text on every machine.
+const bySubject = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
+
 export const MEMORY_FILE_HEADER = '<!-- tiabwft memory: edit freely, one fact per line -->'
 
 const SECTIONS: readonly (readonly [FactKind, string])[] = [
@@ -23,7 +26,7 @@ export const renderMemoryFile = (memory: Memory): string => {
   for (const [kind, title] of SECTIONS) {
     const facts = memory.facts
       .filter(f => f.scope === 'project' && f.kind === kind)
-      .sort((a, b) => a.firstSeen - b.firstSeen || a.subject.localeCompare(b.subject))
+      .sort((a, b) => a.firstSeen - b.firstSeen || bySubject(a.subject, b.subject))
     if (facts.length === 0) {
       continue
     }
