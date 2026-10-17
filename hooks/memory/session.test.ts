@@ -175,7 +175,7 @@ test('persistAll does not rewrite a project file whose text would not change', a
   const loaded = await loadAll(counting)
   const after = await persistAll(counting, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
   expect(writes).toBe(0)
-  expect(after.text).toBe(canonical)
+  expect(after.file.text).toBe(canonical)
 })
 
 const T = Date.parse('2026-10-17T12:00:00Z')
@@ -258,6 +258,14 @@ test('a successful Azure save records the last sync; a failed one does not', asy
   expect(failing.store.has(key)).toBe(false)
 })
 
+test('persistAll counts the facts the Azure cap leaves out, and none without Azure', async () => {
+  const many: Memory = { facts: Array.from({ length: 455 }, (_, i) => remoteFact('stack', `tool ${i}`, 'x', i)), tombstones: {} }
+  const synced = makeDeps({ azure: azureWith(emptyMemory()) })
+  expect((await persistAll(synced.deps, { projectFile: 'commit' }, emptyMemory(), many, { existed: false })).leftOut).toBe(5)
+  const local = makeDeps()
+  expect((await persistAll(local.deps, { projectFile: 'commit' }, emptyMemory(), many, { existed: false })).leftOut).toBe(0)
+})
+
 // Two machines on one shared Azure partition. The fake function merges like the real
 // one: the newest fact wins, and a tombstone removes the facts not seen after it.
 const sharedAzure = () => {
@@ -312,7 +320,7 @@ const machine = (azure: MemoryDeps['azure'], fileText?: string) => {
     start: async (): Promise<Memory> => {
       const loaded = await loadAll(m)
       const after = await persistAll(m, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
-      state = { ...loaded, file: after }
+      state = { ...loaded, file: after.file }
       return loaded.project
     },
     // A fact learned during the session, then the background save.
@@ -320,7 +328,7 @@ const machine = (azure: MemoryDeps['azure'], fileText?: string) => {
       const current = state!
       const project = mergeMemories(current.project, { facts: [remoteFact('stack', subject, text, clock)], tombstones: {} })
       const after = await persistAll(m, { projectFile: 'commit' }, current.personal, project, current.file)
-      state = { ...current, project, file: after }
+      state = { ...current, project, file: after.file }
     },
   }
 }

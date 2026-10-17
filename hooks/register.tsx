@@ -6,6 +6,7 @@ import { combine, deleteFact, emptyMemory, mergeFact } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
 import { applyLearned, forgetMatching, learn, loadAll, persistAll, rememberText } from './memory/session'
 import type { FileState, MemoryDeps, MemoryOptions } from './memory/session'
+import { AZURE_FACT_MAX } from './memory/store'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
 
@@ -21,6 +22,8 @@ const projectAtom = atom({ plugin: 'tiabwft', key: 'project' } as const, emptyMe
 const freshAtom = atom({ plugin: 'tiabwft', key: 'fresh' } as const, [] as string[])
 const pausedAtom = atom({ plugin: 'tiabwft', key: 'paused' } as const, false)
 const unreadableAtom = atom({ plugin: 'tiabwft', key: 'unreadable' } as const, 0)
+// How many facts the last save left out of the Azure upload because of its cap.
+const azureLeftOutAtom = atom({ plugin: 'tiabwft', key: 'azureLeftOut' } as const, 0)
 
 // The user's prompt per main-loop turn, for the reader. Lost on reload, which only skips one read.
 const prompts = new Map<string, string>()
@@ -129,7 +132,11 @@ const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, 
   const memoryOptions: MemoryOptions = { projectFile: options.projectFile === 'ignore' ? 'ignore' : 'commit' }
   await update($, personalAtom, () => personal)
   await update($, projectAtom, () => project)
-  fileState = await persistAll(await memoryDeps($, options), memoryOptions, personal, project, fileState).catch(() => fileState)
+  const saved = await persistAll(await memoryDeps($, options), memoryOptions, personal, project, fileState).catch(() => undefined)
+  if (saved !== undefined) {
+    fileState = saved.file
+    await update($, azureLeftOutAtom, () => saved.leftOut)
+  }
 }
 
 type MemoryPair = { personal: Memory; project: Memory }
@@ -293,6 +300,7 @@ export const register: Register = (on, options) => {
     const known = memoryOn ? combine(await read($, personalAtom), await read($, projectAtom)) : []
     const fresh = new Set(await read($, freshAtom))
     const unreadable = await read($, unreadableAtom)
+    const azureLeftOut = await read($, azureLeftOutAtom)
     const memoryPart = !memoryOn ? (
       <Text key="mem-off" dimColor>🧠 Memory is off (tiabwft setting: memory).</Text>
     ) : (
@@ -323,6 +331,7 @@ export const register: Register = (on, options) => {
           </Box>
         ))}
         {known.length > MAX_SHOWN && <Text key="mem-more" dimColor>{`+${known.length - MAX_SHOWN} more (see /tiabwft memory)`}</Text>}
+        {azureLeftOut > 0 && <Text key="mem-azure-cap" dimColor>{`Azure sync holds the newest ${AZURE_FACT_MAX} facts; ${azureLeftOut} older one(s) stay on this computer only.`}</Text>}
         {unreadable > 0 && <Text key="mem-unreadable" dimColor>{`${unreadable} line(s) in .claude/tiabwft/memory.md couldn't be read. They are kept as written at the end of the file.`}</Text>}
       </Box>
     )

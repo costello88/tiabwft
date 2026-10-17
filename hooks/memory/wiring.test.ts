@@ -291,6 +291,28 @@ test('with Azure sync, the first start on a machine takes a remote fact the file
   expect(files.get('/repo/.claude/tiabwft/memory.md')).toContain('- Make: too fiddly')
 })
 
+test('the panel says when the Azure cap leaves facts out', { options: SYNC }, async ($, on) => {
+  files.clear()
+  const many = Array.from({ length: 452 }, (_, i) => ({ id: `stack:tool ${i}`, kind: 'stack', scope: 'personal', subject: `tool ${i}`, text: 'x', source: 'conversation', firstSeen: i, lastSeen: i }))
+  seed = { 'memory.personal': { facts: many, tombstones: {} } }
+  azureEngine(on, { facts: [], tombstones: {} }, 1)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  const ui = await $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
+  expect((await ui.find({ type: 'Text', text: /Azure sync holds the newest 450 facts/ }))?.text).toContain('2 older')
+  await ui.unmount()
+})
+
+test('without a cap hit the panel shows no Azure note', { options: SYNC }, async ($, on) => {
+  files.clear()
+  azureEngine(on, { facts: [], tombstones: {} }, 1)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  const ui = await $.ui.mount({ plugin: 'tiabwft', surface: 'desktop', component: 'Pane', requestId: 'tiabwft', props: PANE_PROPS })
+  expect(await ui.find({ type: 'Text', text: /Azure sync holds/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('env facts are never written to memory.md, so an unchanged file stays untouched', async ($, on) => {
   files.clear()
   const canonical = '<!-- tiabwft memory: edit freely, one fact per line -->\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'

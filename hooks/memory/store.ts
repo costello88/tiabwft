@@ -197,9 +197,12 @@ export const recentTombstones = (tombstones: Record<string, number>, now: number
   )
 
 // The function takes at most 500 facts per PUT; the newest 450 keep sync working.
-const FACT_MAX = 450
+export const AZURE_FACT_MAX = 450
 
-export const newestFacts = (facts: readonly Fact[]): Fact[] => [...facts].sort((a, b) => b.lastSeen - a.lastSeen).slice(0, FACT_MAX)
+export const newestFacts = (facts: readonly Fact[]): Fact[] => [...facts].sort((a, b) => b.lastSeen - a.lastSeen).slice(0, AZURE_FACT_MAX)
+
+/** How many facts azureSave leaves out of the PUT because of the cap (the oldest ones). */
+export const leftOutOfAzure = (memory: Memory): number => Math.max(0, memory.facts.length - AZURE_FACT_MAX)
 
 export const azureSave = async (fetch: Fetch, config: AzureConfig, partition: string, memory: Memory, now: number = Date.now()): Promise<boolean> => {
   try {

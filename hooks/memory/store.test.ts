@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { Memory } from '../../types'
 import { factId } from './facts'
 import {
-  addSuggested, azureLoad, azureSave, loadLastSync, loadPersonal, loadProject, loadSuggested, projectPartition,
+  addSuggested, azureLoad, azureSave, leftOutOfAzure, loadLastSync, loadPersonal, loadProject, loadSuggested, projectPartition,
   PROJECT_FILE, saveLastSync, saveProject, savePersonal,
 } from './store'
 
@@ -98,6 +98,12 @@ test('projectPartition normalises the root before hashing', async () => {
   expect(await projectPartition('c:\\Users\\me\\shop\\')).toBe(p)
   expect(await projectPartition('C:/Users/me/shop/')).toBe(p)
   expect(await projectPartition('C:\\Users\\me\\Shop')).not.toBe(p)
+})
+
+test('leftOutOfAzure counts the facts past the cap', async () => {
+  const facts = Array.from({ length: 460 }, (_, i) => ({ ...one.facts[0]!, id: factId('decision', `tool ${i}`), subject: `tool ${i}` }))
+  expect(leftOutOfAzure({ facts, tombstones: {} })).toBe(10)
+  expect(leftOutOfAzure(one)).toBe(0)
 })
 
 test('the last sync round-trips per partition and rejects bad values', async () => {

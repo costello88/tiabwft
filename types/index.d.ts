@@ -49,6 +49,8 @@ declare module 'claude-code' {
       paused: boolean
       /** Lines of the project file that couldn't be read. */
       unreadable: number
+      /** Facts the last save left out of the Azure upload because of its 450-fact cap. */
+      azureLeftOut: number
     }
   }
 }

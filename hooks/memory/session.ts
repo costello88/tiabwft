@@ -4,7 +4,7 @@ import { containsSecret, deleteFact, mergeFact, mergeMemories, mergeWithFile, no
 import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
-  addSuggested, azureLoad, azureSave, loadLastSync, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition,
+  addSuggested, azureLoad, azureSave, leftOutOfAzure, loadLastSync, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition,
   saveLastSync, saveProject, savePersonal,
 } from './store'
 import type { AzureConfig, Fetch, Files, KV } from './store'
@@ -75,8 +75,11 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
   }
 }
 
-// Returns the file state after the save, for the next save to compare with.
-export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, file: FileState): Promise<FileState> => {
+// What a save leaves behind: the file state, for the next save to compare with, and how
+// many facts the Azure cap left out of the upload (0 without Azure).
+export type Persisted = { file: FileState; leftOut: number }
+
+export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, file: FileState): Promise<Persisted> => {
   await savePersonal(deps.kv, personal).catch(() => undefined)
   let next = file
   const worthAFile = file.existed || project.facts.some(f => f.source !== 'env')
@@ -86,10 +89,12 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
       next = { ...file, existed: true, text }
     }
   }
+  let leftOut = 0
   if (deps.azure !== undefined) {
     const { config, fetch, sleep } = deps.azure
     const bounded = (save: Promise<boolean>): Promise<boolean> =>
       Promise.race([save, sleep(AZURE_SAVE_TIMEOUT_MS).then(() => false)]).catch(() => false)
+    leftOut = leftOutOfAzure(personal) + leftOutOfAzure(project)
     await Promise.all([
       bounded(azureSave(fetch, config, 'personal', personal)),
       bounded(partitionFor(deps).then(async partition => {
@@ -103,7 +108,7 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
       })),
     ])
   }
-  return next
+  return { file: next, leftOut }
 }
 
 const place = (personal: Memory, project: Memory, facts: readonly Fact[]): { personal: Memory; project: Memory } => {
