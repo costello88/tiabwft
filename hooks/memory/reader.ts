@@ -69,8 +69,8 @@ export const parseReaderReply = (text: string, now: number): ReaderResult => {
   return { facts, suggested }
 }
 
-export const runReader = async (complete: Complete, prompt: string, answer: string, now: number): Promise<ReaderResult> => {
-  if (!shouldRead(prompt, answer)) {
+export const runReader = async (complete: Complete, prompt: string, answer: string, now: number, force?: boolean): Promise<ReaderResult> => {
+  if (force !== true && !shouldRead(prompt, answer)) {
     return EMPTY
   }
   try {

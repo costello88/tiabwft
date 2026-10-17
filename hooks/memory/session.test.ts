@@ -88,3 +88,56 @@ test('rememberText uses the reader, marks the facts as the user, and falls back 
   const b = await rememberText(fallback.deps, 'budget max €50 a month', emptyMemory(), emptyMemory())
   expect(b.added.map(f => `${f.kind}:${f.text}:${f.scope}`)).toEqual(['constraint:budget max €50 a month:personal'])
 })
+
+test('rememberText always reaches the reader, even for short text', async () => {
+  let calls = 0
+  const { deps } = makeDeps({ complete: async () => { calls += 1; return { isAnswered: true, text: JSON.stringify({ facts: [{ kind: 'rejection', scope: 'personal', subject: 'Zapier', text: 'no' }], suggested: [] }), usage: { input_tokens: 1, output_tokens: 1 } } as ModelCompleteResult } })
+  const r = await rememberText(deps, 'no Zapier', emptyMemory(), emptyMemory())
+  expect(calls).toBe(1)
+  expect(r.added.map(f => `${f.kind}:${f.subject}`)).toEqual(['rejection:Zapier'])
+})
+
+test('rememberText fallback strips colons from the subject and cuts long text', async () => {
+  const { deps } = makeDeps()
+  const a = await rememberText(deps, 'budget: max €50 a month', emptyMemory(), emptyMemory())
+  expect(a.added.length).toBe(1)
+  expect(a.added[0]?.kind).toBe('constraint')
+  expect(a.added[0]?.subject.includes(':')).toBe(false)
+  const b = await rememberText(deps, 'x'.repeat(200), emptyMemory(), emptyMemory())
+  expect(b.added.length).toBe(1)
+  expect(b.added[0]?.text.length).toBe(160)
+})
+
+test('rememberText sends no secret to the model and stores nothing', async () => {
+  let calls = 0
+  const { deps } = makeDeps({ complete: async () => { calls += 1; return { isAnswered: false } as ModelCompleteResult } })
+  const r = await rememberText(deps, 'my key is sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789', emptyMemory(), emptyMemory())
+  expect(calls).toBe(0)
+  expect(r.added).toEqual([])
+})
+
+test('persistAll never overwrites a project file that could not be read', async () => {
+  const { deps, data } = makeDeps({}, { [`/repo/${PROJECT_FILE}`]: 'precious' })
+  const files = { ...deps.files, read: async (p: string) => { if (p.endsWith('memory.md')) throw new Error('locked'); return deps.files.read(p) } }
+  const broken = { ...deps, files }
+  const loaded = await loadAll(broken)
+  expect(loaded.fileExisted).toBe(true)
+  expect(loaded.readFailed).toBe(true)
+  const project: Memory = { facts: [{ id: 'decision:vercel', kind: 'decision', scope: 'project', subject: 'Vercel', text: 'x', source: 'conversation', firstSeen: 1, lastSeen: 1 }], tombstones: {} }
+  await persistAll(broken, { projectFile: 'commit' }, loaded.personal, project, loaded.fileExisted, loaded.readFailed)
+  expect(data.get(`/repo/${PROJECT_FILE}`)).toBe('precious')
+})
+
+test('learn leaves out facts that mergeFact dropped', async () => {
+  const project: Memory = { facts: [{ id: 'rejection:zapier', kind: 'rejection', scope: 'project', subject: 'Zapier', text: 'too expensive', source: 'user', firstSeen: 1, lastSeen: 1 }], tombstones: {} }
+  const { deps } = makeDeps({ complete: replyWith({ facts: [{ kind: 'stack', scope: 'project', subject: 'Zapier', text: 'we use it' }, { kind: 'stack', scope: 'project', subject: 'Supabase', text: 'auth' }], suggested: [] }) })
+  const r = await learn(deps, 'we use Zapier for automations and Supabase for auth, ok?', 'ok', emptyMemory(), project)
+  expect(r.fresh).toEqual(['stack:supabase'])
+})
+
+test('persistAll does not wait on a hanging Azure save', async () => {
+  const waits: number[] = []
+  const { deps } = makeDeps({ azure: { config: { url: 'https://x', key: 'k' }, fetch: () => new Promise(() => {}), sleep: async ms => { waits.push(ms) } } })
+  await persistAll(deps, { projectFile: 'commit' }, emptyMemory(), emptyMemory(), false)
+  expect(waits).toContain(5000)
+})

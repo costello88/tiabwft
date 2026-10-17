@@ -29,7 +29,7 @@ export const loadPersonal = async (kv: KV): Promise<Memory> => asMemory(await kv
 
 export const savePersonal = (kv: KV, memory: Memory): Promise<void> => kv.set(PERSONAL_KEY, memory)
 
-export const loadProject = async (files: Files, root: string): Promise<ParsedFile & { existed: boolean }> => {
+export const loadProject = async (files: Files, root: string): Promise<ParsedFile & { existed: boolean; readFailed?: boolean }> => {
   const path = join(root, PROJECT_FILE)
   try {
     if (!(await files.exists(path))) {
@@ -37,7 +37,8 @@ export const loadProject = async (files: Files, root: string): Promise<ParsedFil
     }
     return { ...parseMemoryFile(await files.read(path), Date.now()), existed: true }
   } catch {
-    return { memory: emptyMemory(), unreadable: 0, existed: false }
+    // The file may be there but unreadable: never report it as new.
+    return { memory: emptyMemory(), unreadable: 1, existed: true, readFailed: true }
   }
 }
 

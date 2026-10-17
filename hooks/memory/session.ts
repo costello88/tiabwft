@@ -1,6 +1,6 @@
 import type { Fact, Memory } from '../../types'
 import { scanEnvironment } from './env-scan'
-import { deleteFact, mergeFact, mergeMemories, normaliseSubject, replaceEnvFacts, toFact } from './facts'
+import { containsSecret, deleteFact, mergeFact, mergeMemories, normaliseSubject, replaceEnvFacts, toFact } from './facts'
 import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
@@ -18,9 +18,10 @@ export type MemoryDeps = {
   azure?: { config: AzureConfig; fetch: Fetch; sleep: (ms: number) => Promise<void> }
 }
 export type MemoryOptions = { projectFile: 'commit' | 'ignore' }
-export type Loaded = { personal: Memory; project: Memory; unreadable: number; fileExisted: boolean }
+export type Loaded = { personal: Memory; project: Memory; unreadable: number; fileExisted: boolean; readFailed?: boolean }
 
 const AZURE_TIMEOUT_MS = 2000
+const AZURE_SAVE_TIMEOUT_MS = 5000
 
 const partitionFor = async (deps: MemoryDeps): Promise<string> =>
   projectPartition(deps.root, await deps.files.read(`${deps.root}/.git/config`).catch(() => undefined))
@@ -55,20 +56,22 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
       }
     }
   }
-  return { personal, project, unreadable: file.unreadable, fileExisted: file.existed }
+  return { personal, project, unreadable: file.unreadable, fileExisted: file.existed, readFailed: file.readFailed }
 }
 
-export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, fileExisted: boolean): Promise<void> => {
+export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, fileExisted: boolean, readFailed = false): Promise<void> => {
   await savePersonal(deps.kv, personal).catch(() => undefined)
   const worthAFile = fileExisted || project.facts.some(f => f.source !== 'env')
-  if (worthAFile) {
+  if (worthAFile && !readFailed) {
     await saveProject(deps.files, deps.root, project, options.projectFile).catch(() => undefined)
   }
   if (deps.azure !== undefined) {
-    const { config, fetch } = deps.azure
+    const { config, fetch, sleep } = deps.azure
+    const bounded = (save: Promise<boolean>): Promise<boolean> =>
+      Promise.race([save, sleep(AZURE_SAVE_TIMEOUT_MS).then(() => false)]).catch(() => false)
     await Promise.all([
-      azureSave(fetch, config, 'personal', personal),
-      partitionFor(deps).then(partition => azureSave(fetch, config, partition, project)),
+      bounded(azureSave(fetch, config, 'personal', personal)),
+      bounded(partitionFor(deps).then(partition => azureSave(fetch, config, partition, project))),
     ])
   }
 }
@@ -91,7 +94,9 @@ export const learn = async (deps: MemoryDeps, prompt: string, answer: string, pe
   if (result.suggested.length > 0) {
     await addSuggested(deps.kv, result.suggested).catch(() => undefined)
   }
-  return { ...place(personal, project, result.facts), fresh: result.facts.map(f => f.id) }
+  const placed = place(personal, project, result.facts)
+  const kept = new Set([...placed.personal.facts, ...placed.project.facts].map(f => f.id))
+  return { ...placed, fresh: result.facts.map(f => f.id).filter(id => kept.has(id)) }
 }
 
 export const forgetMatching = (personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
@@ -108,11 +113,15 @@ export const forgetById = (personal: Memory, project: Memory, id: string, now: n
 }
 
 export const rememberText = async (deps: MemoryDeps, text: string, personal: Memory, project: Memory): Promise<{ personal: Memory; project: Memory; added: Fact[] }> => {
+  if (containsSecret(text)) {
+    return { personal, project, added: [] }
+  }
   const now = deps.now()
-  const read = await runReader(deps.complete, `Remember this about me: ${text}`.padEnd(40, ' '), '', now)
-  let added = read.facts.map(f => ({ ...f, source: 'user' as const }))
+  const read = await runReader(deps.complete, `Remember this about me: ${text}`, '', now, true)
+  let added: Fact[] = read.facts.map(f => ({ ...f, source: 'user' as const }))
   if (added.length === 0) {
-    const fallback = toFact({ kind: 'constraint', scope: 'personal', subject: text.split(/\s+/).slice(0, 4).join(' '), text }, 'user', now)
+    const subject = text.split(/\s+/).filter(w => w !== '').slice(0, 4).join(' ').replace(/:/g, '').trim().slice(0, 60).trim()
+    const fallback = toFact({ kind: 'constraint', scope: 'personal', subject, text: text.trim().slice(0, 160) }, 'user', now)
     added = fallback === undefined ? [] : [fallback]
   }
   return { ...place(personal, project, added), added }
