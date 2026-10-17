@@ -33,6 +33,7 @@ Answer `y` to add the marketplace, then pick a scope.
 | `/tiabwft` | shows whether it's on |
 | `/tiabwft off` | mutes suggestions for this session |
 | `/tiabwft on` | turns them back on |
+| `/tiabwft panel` | opens the side panel with the latest suggestion |
 
 The **Suggestion mode** setting (in the plugin's config) can be `always` (default), `big-asks-only` (only for goals like building or automating), or `off`.
 
@@ -63,9 +64,13 @@ npx markdownlint-cli2 && node scripts/check-references.mjs
 
 `check-references.mjs` fetches every `Source:` URL in the references and fails on a 404, so a refresh can't cite a page that doesn't exist.
 
+## Side panel
+
+Next to the chat, the **💡 Better way** panel always shows the latest stack suggestion: its goal, the time and the full block, rendered as markdown. It opens when a session starts and updates after every answer that carries a 💡 block, so a tip stays visible after the chat has scrolled on. Reopen it with `/tiabwft panel`. Subagent replies and interrupted turns don't replace it.
+
 ## Roadmap
 
-- v2: a side panel that always shows the latest optimization suggestion.
+- Remember your stack across sessions, so the same tools aren't suggested twice.
 
 ## License
 

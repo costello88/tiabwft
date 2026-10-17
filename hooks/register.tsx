@@ -1,9 +1,35 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
+import type { Suggestion } from '../types'
+
 export const SECTION_ID = 'tiabwft:better-way'
+export const PANE = 'tiabwft'
+const PANE_TITLE = '💡 Better way'
 
 const enabled = atom({ plugin: 'tiabwft', key: 'enabled' } as const, true)
+const latest = atom({ plugin: 'tiabwft', key: 'latest' } as const, null as Suggestion | null)
+const count = atom({ plugin: 'tiabwft', key: 'count' } as const, 0)
+
+// A heading or bold line that opens with the 💡 the protocol asks for, in any language.
+const BLOCK_START = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?[ \t]*💡/m
+const GOAL_LINE = /^[ \t]*(?:\*\*|__)?(?:Goal|Doel|Ziel|Objectif|Objetivo|Obiettivo)\b[^\n]*/im
+
+// Cuts the "There's a better way" block out of a finished reply: from its 💡
+// heading to the end, where the protocol puts it. Undefined when there is none.
+export const extractSuggestion = (answer: string, at: number): Suggestion | undefined => {
+  const start = answer.search(BLOCK_START)
+  if (start < 0) {
+    return undefined
+  }
+  const markdown = answer.slice(start).trim()
+  const goal = markdown.match(GOAL_LINE)?.[0]
+  const topic = goal === undefined
+    ? markdown.split('\n')[0]!.replace(/[#*_💡]/g, '').trim()
+    : goal.replace(/[*_]/g, '').replace(/^[^:]*:\s*/, '').trim()
+
+  return { markdown, topic: topic.slice(0, 120), at }
+}
 
 const CORE = `# There is a better way for that (tiabwft)
 
@@ -85,14 +111,59 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'tiabwft',
-      description: 'There is a better way for that: /tiabwft on, /tiabwft off, or /tiabwft to see the status',
+      description: 'There is a better way for that: /tiabwft on, /tiabwft off, /tiabwft panel, or /tiabwft to see the status',
     })
+    if (protocol !== undefined) {
+      void $.ui.open({ id: PANE, title: PANE_TITLE })
+    }
 
     return next(e)
   })
 
+  // Keeps the latest 💡 block of the main loop for the side panel.
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (e.agentId === undefined && !e.isAborted) {
+      const found = extractSuggestion(e.answer, Date.now())
+      if (found !== undefined) {
+        await update($, latest, () => found)
+        await update($, count, n => n + 1)
+      }
+    }
+
+    return done
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const { Box, Text, Markdown } = $.ui.resolve(e)
+    const shown = await read($, latest)
+    const total = await read($, count)
+    const isOn = protocol !== undefined && (await read($, enabled))
+    if (shown === null) {
+      return (
+        <Box flexDirection="column">
+          <Text dimColor>{isOn ? 'No suggestion yet. Ask something and the latest stack tip lands here.' : 'tiabwft is off. Turn it on with /tiabwft on.'}</Text>
+        </Box>
+      )
+    }
+    const time = new Date(shown.at).toTimeString().slice(0, 5)
+
+    return (
+      <Box flexDirection="column">
+        <Text key="meta" dimColor>{`${time} · ${shown.topic}${total > 1 ? ` · ${total} this session` : ''}`}</Text>
+        <Markdown key="block" text={shown.markdown} />
+        {!isOn && <Text key="off" dimColor>tiabwft is off now; this is the last tip from before.</Text>}
+      </Box>
+    )
+  })
+
   on('command.run', { command: 'tiabwft' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
+    if (arg === 'panel') {
+      const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
+
+      return { text: isPlaced ? 'The tiabwft panel is open.' : 'The tiabwft panel is ready, but this surface has no room to show a pane.' }
+    }
     if (arg === 'on' || arg === 'off') {
       await update($, enabled, () => arg === 'on')
     }

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { sessionFacts } from './register'
+import { extractSuggestion, PANE, sessionFacts } from './register'
 import type { On } from 'claude-code'
 
 const SECTION_ID = 'tiabwft:better-way'
@@ -84,4 +84,86 @@ test('the protocol asks for a full stack from real lookups', async ($, on) => {
   for (const part of ['Full stack', 'Flow', 'Start here', '🤖', '🔌', '🧩', '📦', '🛡️', 'mcp-registry', 'SearchPlugins', 'gh search repos', '--topic=claude-skills', "user's language"]) {
     expect(text).toContain(part)
   }
+})
+
+const REPLY_EN = `Here is how to set it up.
+
+## 💡 There's a better way
+
+**Goal:** website leads land in the CRM automatically.
+
+| Layer | Pick | Why | How to add | Status |
+|---|---|---|---|---|
+| 🔌 CRM | HubSpot | contacts and deals | connect it | new |
+
+**Start here:** connect HubSpot.`
+
+const REPLY_NL = `Klaar.
+
+**💡 Er is een betere manier**
+
+**Doel:** elke websitelead komt in het CRM.
+
+**Begin hier:** verbind HubSpot.`
+
+const turnEnd = (answer: string, extra: { agentId?: string; isAborted?: boolean } = {}) => ({
+  answer,
+  durationMs: 1000,
+  isAborted: extra.isAborted ?? false,
+  turnId: `t-${Math.random()}`,
+  reason: extra.isAborted ? ('aborted' as const) : ('answer' as const),
+  ...(extra.agentId === undefined ? {} : { agentId: extra.agentId }),
+})
+
+const PANE_PROPS = {
+  title: '💡 Better way',
+  isFocused: false,
+  bodyColumns: 60,
+  placement: 'dock' as const,
+  scroll: { offset: 0, bodyRows: 30 },
+  view: {},
+}
+
+const paneText = async ($: Engine, surface: 'terminal' | 'desktop') => {
+  const ui = await $.ui.mount({ plugin: 'tiabwft', surface, component: 'Pane', requestId: PANE, props: PANE_PROPS })
+  const all = [await ui.find({ key: 'meta' }), await ui.find({ key: 'block' }), await ui.find({ type: 'Text' })]
+  await ui.unmount()
+
+  return all.map(found => found?.text ?? '').join('\n')
+}
+
+test('extractSuggestion cuts the block from its 💡 heading and reads the goal, in any language', async () => {
+  const en = extractSuggestion(REPLY_EN, 0)
+  expect(en?.markdown.startsWith("## 💡 There's a better way")).toBe(true)
+  expect(en?.markdown).not.toContain('Here is how')
+  expect(en?.topic).toBe('website leads land in the CRM automatically.')
+  expect(extractSuggestion(REPLY_NL, 0)?.topic).toBe('elke websitelead komt in het CRM.')
+  expect(extractSuggestion('Fixed the typo.', 0)).toBeUndefined()
+})
+
+test('the panel shows a hint first, then the latest block on every surface', async ($, on) => {
+  on('turn.complete', async () => ({ text: '' }))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    expect(await paneText($, surface)).toContain('No suggestion yet')
+  }
+  await $.turn.complete(turnEnd(REPLY_EN))
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const text = await paneText($, surface)
+    expect(text).toContain('website leads land in the CRM automatically.')
+    expect(text).toContain('HubSpot')
+  }
+})
+
+test('subagent turns and interrupted turns leave the panel alone', async ($, on) => {
+  on('turn.complete', async () => ({ text: '' }))
+  await $.turn.complete(turnEnd(REPLY_EN, { agentId: 'sub-1' }))
+  await $.turn.complete(turnEnd(REPLY_NL, { isAborted: true }))
+  expect(await paneText($, 'desktop')).toContain('No suggestion yet')
+})
+
+test('/tiabwft panel opens the pane', async ($, on) => {
+  on('command.run', async () => ({ text: '' }))
+  on('ui.open', async () => ({ value: { isPlaced: true } }))
+  const ran = await $.command.run({ command: 'tiabwft', args: 'panel', ...RUN })
+  expect(ran.text).toContain('panel')
 })
