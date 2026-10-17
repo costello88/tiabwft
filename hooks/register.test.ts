@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { extractSuggestion, PANE, sessionFacts } from './register'
+import { PANE, sessionFacts } from './register'
+import { extractSuggestion } from './suggestion'
 import type { On } from 'claude-code'
 
 const SECTION_ID = 'tiabwft:better-way'

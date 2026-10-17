@@ -2,6 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Suggestion } from '../types'
+import { extractSuggestion } from './suggestion'
+export { extractSuggestion } from './suggestion'
 
 export const SECTION_ID = 'tiabwft:better-way'
 export const PANE = 'tiabwft'
@@ -10,26 +12,6 @@ const PANE_TITLE = '💡 Better way'
 const enabled = atom({ plugin: 'tiabwft', key: 'enabled' } as const, true)
 const latest = atom({ plugin: 'tiabwft', key: 'latest' } as const, null as Suggestion | null)
 const count = atom({ plugin: 'tiabwft', key: 'count' } as const, 0)
-
-// A heading or bold line that opens with the 💡 the protocol asks for, in any language.
-const BLOCK_START = /^[ \t]*(?:#{1,6}[ \t]*)?(?:\*\*|__)?[ \t]*💡/m
-const GOAL_LINE = /^[ \t]*(?:\*\*|__)?(?:Goal|Doel|Ziel|Objectif|Objetivo|Obiettivo)\b[^\n]*/im
-
-// Cuts the "There's a better way" block out of a finished reply: from its 💡
-// heading to the end, where the protocol puts it. Undefined when there is none.
-export const extractSuggestion = (answer: string, at: number): Suggestion | undefined => {
-  const start = answer.search(BLOCK_START)
-  if (start < 0) {
-    return undefined
-  }
-  const markdown = answer.slice(start).trim()
-  const goal = markdown.match(GOAL_LINE)?.[0]
-  const topic = goal === undefined
-    ? markdown.split('\n')[0]!.replace(/[#*_💡]/g, '').trim()
-    : goal.replace(/[*_]/g, '').replace(/^[^:]*:\s*/, '').trim()
-
-  return { markdown, topic: topic.slice(0, 120), at }
-}
 
 const CORE = `# There is a better way for that (tiabwft)
 
