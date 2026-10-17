@@ -77,3 +77,11 @@ test('the compose section carries the live facts', async ($, on) => {
   const { sections } = await $.prompt.compose(FACTS)
   expect(sections.at(-1)?.text).toContain('Model in use: claude-opus-5-5')
 })
+
+test('the protocol asks for connector, skill/plugin and GitHub picks from real lookups', async ($, on) => {
+  base(on)
+  const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  for (const part of ['🔌', '🧩', '📦', 'mcp-registry', 'SearchPlugins', 'gh search repos', "user's language"]) {
+    expect(text).toContain(part)
+  }
+})

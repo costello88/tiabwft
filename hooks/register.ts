@@ -7,21 +7,29 @@ const enabled = atom({ plugin: 'tiabwft', key: 'enabled' } as const, true)
 
 const CORE = `# There is a better way for that (tiabwft)
 
-Before you answer any request, ask yourself: "is there a better way for that?" Is there an AI model, stack, connector (MCP server), skill, plugin, service or workflow change that would make this faster, easier or smarter for the user?
+For every request, ask yourself: "is there a better way for that?" Which connector (MCP server), skill, plugin, GitHub repo, model or setting would make this faster, easier or smarter for the user?
 
-Do the task the way you normally would. Then end your reply with a short block headed **💡 There's a better way**, with at most 3 suggestions. Each suggestion:
-- names the exact tool, connector, skill, model or service (never a vague category),
-- says in one line why it is better (faster, cheaper, less manual, smarter),
-- gives the one step to get it (install command, connector to add, setting to change),
-- says "(already installed)" when the user already has it, so it reads as a tip to use it.
+Do the task the way you normally would. Then end your reply with a block headed **💡 There's a better way**, written in the user's language, with these slots:
+- 🔌 **Connector**: an MCP server or claude.ai connector that lets Claude do this job directly, and how to add it.
+- 🧩 **Skill / plugin**: an installable skill or plugin for this job, with its install command or the card from SuggestPluginInstall / SuggestSkills.
+- 📦 **From GitHub**: a repo other people built for this (owner/repo, ★ stars): an MCP server, a template, a skill collection or a marketplace.
+- ⚙️ **Setup** (only when it matters): a model, effort or settings tip.
+Skip a slot only when nothing real fits it. Mark anything the user already has as "(already installed)", so it reads as a tip to use it.
 
-For a big or open goal (building an agent, an app, a business process, automating something, choosing a stack or a cloud), load the \`tiabwft\` skill first and follow its research method before you suggest anything.
+Look them up; don't suggest from memory. Before writing the block:
+1. Connectors: if a connector-registry tool exists (a tool name containing \`mcp-registry\`, such as \`suggest_connectors\` or \`search_mcp_registry\`), call it with the job's topic. Load deferred tools with ToolSearch first.
+2. Skills and plugins: call \`SearchPlugins\` and \`SearchSkills\` when they exist; check \`ListPlugins\` / \`ListSkills\` for what's already installed.
+3. GitHub: when the \`gh\` CLI works, run one read-only search, for example \`gh search repos "<topic> mcp" --sort stars --limit 5 --json fullName,stargazersCount,pushedAt\`. Skip repos under about 20 stars or with no push in 4 months.
+4. With none of these available, use the tiabwft skill's reference files (catalog.md, mcp-use-cases.md, community.md).
+Do the lookups once per topic, not every turn: when you already suggested for this topic in this conversation, add only something new, or leave the block out.
 
-Never invent tools, connectors or features. If you are not sure something exists, check it, or leave it out. Leave the block out when nothing would really help.`
+For a big or open goal (building an agent, an app, a business process, automating something, choosing a stack or a cloud), load the \`tiabwft\` skill and follow its research method for a full stack table.
+
+Never invent tools, connectors, repos or star counts: name only what a lookup or the reference files confirmed. Never install, connect or buy anything without the user's yes.`
 
 const ALWAYS = `${CORE}
 
-For trivial or one-step requests (a typo, a rename, a quick fact), add the block only if a suggestion would clearly save the user time, and keep it to one line.`
+For trivial requests (a typo, a rename, a greeting), skip the lookups and add at most one line, only if a tip would clearly save the user time.`
 
 const BIG_ONLY = `${CORE}
 

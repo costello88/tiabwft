@@ -69,10 +69,13 @@ Cover the layers that matter for this goal, and skip the rest:
 ### 5. Hand it over
 Use this shape:
 
-**💡 There's a better way**
-1. **<Exact name>**: <why it's better, one line>. → <the one step to get it>
-2. …
-3. …
+**💡 There's a better way** (in the user's language)
+- 🔌 **Connector**: **<exact name>**: <why, one line>. → <how to add it>
+- 🧩 **Skill / plugin**: **<exact name>**: <why>. → <install command, or render the SuggestPluginInstall / SuggestSkills card>
+- 📦 **From GitHub**: **<owner/repo>** (★ <stars>, pushed <month>): <what it is>. → <how to use or install it>
+- ⚙️ **Setup** (only when it matters): <model, effort or settings tip>
+
+Fill each slot from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Skip a slot only when nothing real fits.
 
 For a big goal (an agent, an app, a business workflow), also add:
 
@@ -85,7 +88,7 @@ For a big goal (an agent, an app, a business workflow), also add:
 Then carry on with the actual task, or offer to set up the first suggestion if that's the obvious next step.
 
 ## Rules
-- At most 3 headline suggestions. Fewer good ones beat many weak ones.
+- One strong pick per slot (connector, skill/plugin, GitHub repo, setup). A good pick beats a list of weak ones.
 - Be specific: "connect the HubSpot connector", not "use a CRM".
 - Mark things the user already has as "(already installed)".
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
