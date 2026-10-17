@@ -1,0 +1,104 @@
+import { expect, test } from 'claude-code/testing'
+
+import type { Fact } from '../../types'
+import {
+  asMemory, combine, containsSecret, deleteFact, emptyMemory, factId, mergeFact,
+  mergeMemories, replaceEnvFacts, toFact,
+} from './facts'
+
+const fact = (over: Partial<Fact> & Pick<Fact, 'kind' | 'subject'>): Fact => ({
+  id: factId(over.kind, over.subject),
+  scope: 'project',
+  text: 'some text',
+  source: 'conversation',
+  firstSeen: 1,
+  lastSeen: 1,
+  ...over,
+})
+
+test('toFact accepts a valid draft and fills id, source and dates', async () => {
+  const f = toFact({ kind: 'stack', scope: 'project', subject: ' Supabase ', text: 'database and auth' }, 'conversation', 5)
+  expect(f).toEqual({
+    id: 'stack:supabase', kind: 'stack', scope: 'project', subject: 'Supabase',
+    text: 'database and auth', source: 'conversation', firstSeen: 5, lastSeen: 5,
+  })
+})
+
+test('toFact rejects unknown kinds, bad lengths and secrets', async () => {
+  expect(toFact({ kind: 'wish', subject: 'x', text: 'y' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: '', text: 'y' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'x'.repeat(61), text: 'y' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'x', text: 'y'.repeat(161) }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'OpenAI', text: 'key sk-abcdefghijklmnopqrstuv' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'constraint', subject: 'contact', text: 'mail me at a.b@example.com' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact('not an object', 'conversation', 1)).toBeUndefined()
+})
+
+test('containsSecret spots the known shapes', async () => {
+  for (const s of ['ghp_abcdefghijklmnopqrstuvwx', 'xoxb-1234567890-abc', 'AKIA' + 'ABCDEFGHIJKLMNOP', 'password = hunter2', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.abcdefghijklmno']) {
+    expect(containsSecret(s)).toBe(true)
+  }
+  expect(containsSecret('Supabase for auth')).toBe(false)
+})
+
+test('mergeFact updates the same id instead of duplicating', async () => {
+  let m = mergeFact(emptyMemory(), fact({ kind: 'stack', subject: 'Supabase', text: 'db', lastSeen: 1 }))
+  m = mergeFact(m, fact({ kind: 'stack', subject: 'supabase', text: 'db and auth', firstSeen: 9, lastSeen: 9 }))
+  expect(m.facts.length).toBe(1)
+  expect(m.facts[0]?.text).toBe('db and auth')
+  expect(m.facts[0]?.firstSeen).toBe(1)
+  expect(m.facts[0]?.lastSeen).toBe(9)
+})
+
+test('a rejection wins over conversation facts, but env and user facts override it', async () => {
+  let m = mergeFact(emptyMemory(), fact({ kind: 'rejection', subject: 'Zapier', text: 'too expensive' }))
+  m = mergeFact(m, fact({ kind: 'decision', subject: 'Zapier', text: 'use it for forms' }))
+  expect(m.facts.map(f => f.kind)).toEqual(['rejection'])
+  m = mergeFact(m, fact({ kind: 'stack', subject: 'Zapier', text: 'seen in .env.example', source: 'env' }))
+  expect(m.facts.map(f => f.kind)).toEqual(['stack'])
+})
+
+test('a new rejection removes conversation facts about the same subject but keeps env ones', async () => {
+  let m = mergeFact(emptyMemory(), fact({ kind: 'decision', subject: 'n8n', text: 'self-host it' }))
+  m = mergeFact(m, fact({ kind: 'stack', subject: 'n8n', text: 'seen in docker-compose.yml', source: 'env' }))
+  m = mergeFact(m, fact({ kind: 'rejection', subject: 'n8n', text: 'too much upkeep' }))
+  expect(m.facts.map(f => f.kind).sort()).toEqual(['rejection', 'stack'])
+})
+
+test('deleteFact leaves a tombstone that blocks older copies', async () => {
+  const f = fact({ kind: 'stack', subject: 'Supabase', lastSeen: 3 })
+  let m = deleteFact(mergeFact(emptyMemory(), f), f.id, 5)
+  expect(m.facts.length).toBe(0)
+  m = mergeFact(m, { ...f, lastSeen: 4 })
+  expect(m.facts.length).toBe(0)
+  m = mergeFact(m, { ...f, lastSeen: 6 })
+  expect(m.facts.length).toBe(1)
+})
+
+test('replaceEnvFacts drops env facts no longer found and keeps the rest', async () => {
+  let m = mergeFact(emptyMemory(), fact({ kind: 'stack', subject: 'Stripe', source: 'env' }))
+  m = mergeFact(m, fact({ kind: 'decision', subject: 'Vercel', text: 'team knows it' }))
+  m = replaceEnvFacts(m, [fact({ kind: 'stack', subject: 'Supabase', source: 'env' })])
+  expect(m.facts.map(f => f.subject).sort()).toEqual(['Supabase', 'Vercel'])
+})
+
+test('mergeMemories keeps the newest copy and honours tombstones', async () => {
+  const a = { facts: [fact({ kind: 'stack', subject: 'Supabase', text: 'old', lastSeen: 1 })], tombstones: {} }
+  const b = { facts: [fact({ kind: 'stack', subject: 'Supabase', text: 'new', lastSeen: 2 })], tombstones: { 'decision:vercel': 9 } }
+  const c = { facts: [fact({ kind: 'decision', subject: 'Vercel', lastSeen: 3 })], tombstones: {} }
+  const merged = mergeMemories(mergeMemories(a, b), c)
+  expect(merged.facts.map(f => f.text)).toEqual(['new'])
+  expect(merged.tombstones['decision:vercel']).toBe(9)
+})
+
+test('combine lets a project fact hide a personal fact about the same subject', async () => {
+  const personal = { facts: [fact({ kind: 'rejection', subject: 'n8n', scope: 'personal', text: 'no self-hosting' }), fact({ kind: 'constraint', subject: 'budget', scope: 'personal', text: 'max €50' })], tombstones: {} }
+  const project = { facts: [fact({ kind: 'stack', subject: 'n8n', text: 'runs on our VPS' })], tombstones: {} }
+  expect(combine(personal, project).map(f => `${f.scope}:${f.subject}`).sort()).toEqual(['personal:budget', 'project:n8n'])
+})
+
+test('asMemory accepts stored memory and drops junk', async () => {
+  const good = fact({ kind: 'stack', subject: 'Supabase' })
+  expect(asMemory({ facts: [good, { kind: 'nope' }], tombstones: { a: 1, b: 'x' } })).toEqual({ facts: [good], tombstones: { a: 1 } })
+  expect(asMemory(undefined)).toEqual(emptyMemory())
+})
