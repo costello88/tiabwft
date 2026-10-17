@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Fact, Memory, Suggestion } from '../types'
-import { combine, deleteFact, emptyMemory } from './memory/facts'
+import { combine, deleteFact, emptyMemory, mergeFact } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
-import { applyLearned, learn, loadAll, persistAll } from './memory/session'
+import { applyLearned, forgetMatching, learn, loadAll, persistAll, rememberText } from './memory/session'
 import type { MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
@@ -177,7 +177,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'tiabwft',
-      description: 'There is a better way for that: /tiabwft on, /tiabwft off, /tiabwft panel, or /tiabwft to see the status',
+      description: 'There is a better way for that: /tiabwft on|off|panel, /tiabwft memory [off|on|reset], /tiabwft forget <text>, /tiabwft remember <text>',
     })
     if (protocol !== undefined) {
       void $.ui.open({ id: PANE, title: PANE_TITLE })
@@ -311,6 +311,81 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'tiabwft' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
+    const raw = e.args.trim()
+    if (arg === 'memory' || arg.startsWith('memory ') || arg.startsWith('forget ') || arg.startsWith('remember ')) {
+      if (!memoryOn) {
+        return { text: 'Memory is off in the tiabwft settings (memory: off).' }
+      }
+      const failed = { text: "Couldn't change memory just now. Nothing was lost." }
+      if (arg === 'memory') {
+        const known = combine(await read($, personalAtom), await read($, projectAtom))
+
+        return {
+          text: known.length === 0
+            ? 'tiabwft remembers nothing yet.'
+            : known.map(f => `${f.scope === 'personal' ? '\u{1F464}' : '\u{1F5C2}\uFE0F'} [${f.kind}] ${f.subject}: ${f.text}`).join('\n'),
+        }
+      }
+      if (arg === 'memory off' || arg === 'memory on') {
+        await update($, pausedAtom, () => arg === 'memory off')
+
+        return { text: arg === 'memory off' ? 'Learning is paused for this session. What tiabwft already knows is still used.' : 'Learning is on again.' }
+      }
+      if (arg === 'memory reset') {
+        return { text: 'This deletes everything tiabwft remembers about this project. Type /tiabwft memory reset confirm to go ahead.' }
+      }
+      if (arg === 'memory reset confirm') {
+        const now = Date.now()
+        const done = await mutateMemory($, options, (personal, project) => ({
+          personal,
+          project: project.facts.filter(f => f.source !== 'env').reduce((m, f) => deleteFact(m, f.id, now), project),
+        }))
+
+        return done === undefined ? failed : { text: "This project's memory is deleted. Facts found in your files come back at the next start." }
+      }
+      if (arg.startsWith('forget ')) {
+        const needle = raw.slice('forget '.length)
+        let removed: Fact[] = []
+        const done = await mutateMemory($, options, (personal, project) => {
+          const r = forgetMatching(personal, project, needle, Date.now())
+          removed = r.removed
+
+          return { personal: r.personal, project: r.project }
+        })
+        if (done === undefined) {
+          return failed
+        }
+
+        return { text: removed.length === 0 ? 'Nothing matched.' : `Forgotten: ${removed.map(f => f.subject).join(', ')}` }
+      }
+      if (arg.startsWith('remember ')) {
+        let added: Fact[] = []
+        try {
+          const r = await rememberText(await memoryDeps($, options), raw.slice('remember '.length), await read($, personalAtom), await read($, projectAtom))
+          added = r.added
+        } catch {
+          return failed
+        }
+        if (added.length === 0) {
+          return { text: "Couldn't save that (too long, or it looked like a secret)." }
+        }
+        const done = await mutateMemory($, options, (personal, project) => {
+          let p = personal
+          let j = project
+          for (const f of added) {
+            if (f.scope === 'personal') {
+              p = mergeFact(p, f)
+            } else {
+              j = mergeFact(j, f)
+            }
+          }
+
+          return { personal: p, project: j }
+        })
+
+        return done === undefined ? failed : { text: `Remembered: ${added.map(f => `[${f.kind}] ${f.subject}`).join(', ')}` }
+      }
+    }
     if (arg === 'panel') {
       const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
 
