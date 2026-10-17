@@ -66,3 +66,7 @@ npx markdownlint-cli2 && node scripts/check-references.mjs
 ## Roadmap
 
 - v2: a side panel that always shows the latest optimization suggestion.
+
+## License
+
+[MIT](LICENSE)
