@@ -121,7 +121,7 @@ export const applyLearned = (
   return { personal, project }
 }
 
-export const forgetMatching =(personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
+export const forgetMatching = (personal: Memory, project: Memory, text: string, now: number): { personal: Memory; project: Memory; removed: Fact[] } => {
   const needle = text.trim().toLowerCase()
   const hits = (m: Memory) => m.facts.filter(f => f.source !== 'env' && needle !== '' && `${f.subject} ${f.text}`.toLowerCase().includes(needle))
   const removed = [...hits(personal), ...hits(project)]

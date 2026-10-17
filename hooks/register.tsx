@@ -141,7 +141,8 @@ export const register: Register = (on, options) => {
     }
     if (memoryOn && protocol !== undefined) {
       fileExisted = false
-      readFailed = false
+      // Until a load succeeds, never write the project file: it may exist unread.
+      readFailed = true
       try {
         const loaded = await loadAll(await memoryDeps($, options))
         fileExisted = loaded.fileExisted
