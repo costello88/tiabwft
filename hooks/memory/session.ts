@@ -1,10 +1,10 @@
 import type { Fact, Memory } from '../../types'
 import { scanEnvironment } from './env-scan'
-import { containsSecret, deleteFact, mergeFact, mergeMemories, normaliseSubject, replaceEnvFacts, toFact } from './facts'
+import { containsSecret, deleteFact, mergeFact, mergeMemories, mergeWithFile, normaliseSubject, replaceEnvFacts, toFact } from './facts'
 import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
-  addSuggested, azureLoad, azureSave, loadPersonal, loadProject, loadSuggested, projectPartition, saveProject, savePersonal,
+  addSuggested, azureLoad, azureSave, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition, saveProject, savePersonal,
 } from './store'
 import type { AzureConfig, Fetch, Files, KV } from './store'
 
@@ -37,15 +37,18 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
   let project = file.memory
   if (deps.azure !== undefined) {
     const { config, fetch, sleep } = deps.azure
-    const [remotePersonal, remoteProject] = await Promise.all([
+    const fileRead = file.existed && file.readFailed !== true
+    const [remotePersonal, remoteProject, mtime] = await Promise.all([
       azureLoad(fetch, config, 'personal', AZURE_TIMEOUT_MS, sleep),
       partitionFor(deps).then(partition => azureLoad(fetch, config, partition, AZURE_TIMEOUT_MS, sleep)),
+      fileRead && deps.files.mtime !== undefined ? deps.files.mtime(projectFilePath(deps.root)).catch(() => undefined) : Promise.resolve(undefined),
     ])
     if (remotePersonal !== undefined) {
       personal = mergeMemories(personal, remotePersonal)
     }
     if (remoteProject !== undefined) {
-      project = mergeMemories(project, remoteProject)
+      // With the file's time the file is the authority; without it, the newest copy wins.
+      project = mtime !== undefined && Number.isFinite(mtime) ? mergeWithFile(project, remoteProject, mtime) : mergeMemories(project, remoteProject)
     }
   }
   const reader = { exists: (p: string) => deps.files.exists(`${deps.root}/${p}`), read: (p: string) => deps.files.read(`${deps.root}/${p}`) }

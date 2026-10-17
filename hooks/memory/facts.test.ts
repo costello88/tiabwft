@@ -1,9 +1,9 @@
 import { expect, test } from 'claude-code/testing'
 
-import type { Fact } from '../../types'
+import type { Fact, Memory } from '../../types'
 import {
   asMemory, combine, containsSecret, deleteFact, emptyMemory, factId, mergeFact,
-  mergeMemories, replaceEnvFacts, toFact,
+  mergeMemories, mergeWithFile, replaceEnvFacts, toFact,
 } from './facts'
 
 const fact = (over: Partial<Fact> & Pick<Fact, 'kind' | 'subject'>): Fact => ({
@@ -119,4 +119,17 @@ test('asMemory rebuilds stored facts from validated parts only', async () => {
   expect(asMemory({ facts: [{ ...good, source: 'root' }], tombstones: {} }).facts).toEqual([])
   expect(asMemory({ facts: [{ ...good, extra: 'smuggled' }], tombstones: {} }).facts).toEqual([good])
   expect(asMemory({ facts: [], tombstones: { a: Number.POSITIVE_INFINITY, b: 2 } }).tombstones).toEqual({ b: 2 })
+})
+
+test('mergeWithFile: the file wins, hand deletions get a tombstone at mtime, newer remote facts and env facts', async () => {
+  const at = (kind: Fact['kind'], subject: string, text: string, lastSeen: number, source: Fact['source'] = 'conversation'): Fact =>
+    ({ id: factId(kind, subject), kind, scope: 'project', subject, text, source, firstSeen: lastSeen, lastSeen })
+  const file: Memory = { facts: [at('rejection', 'Zapier', 'mine', 0)], tombstones: {} }
+  const remote: Memory = {
+    facts: [at('rejection', 'Zapier', 'theirs', 50), at('stack', 'Old', 'deleted by hand', 60), at('stack', 'New', 'learned later', 200), at('stack', 'Stripe', 'env', 50, 'env')],
+    tombstones: {},
+  }
+  const merged = mergeWithFile(file, remote, 100)
+  expect(merged.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['New:learned later', 'Zapier:mine'])
+  expect(merged.tombstones).toEqual({ [factId('stack', 'Old')]: 100 })
 })

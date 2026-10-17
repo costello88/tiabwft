@@ -33,7 +33,12 @@ const memoryDeps = async ($: EngineInterface, options: Record<string, unknown>):
   const key = typeof options.azureSyncKey === 'string' ? options.azureSyncKey : ''
   return {
     root: await $.session.root(),
-    files: { exists: p => $.fs.exists(p), read: p => $.fs.read(p), write: (p, t) => $.fs.write(p, t) },
+    files: {
+      exists: p => $.fs.exists(p),
+      read: p => $.fs.read(p),
+      write: (p, t) => $.fs.write(p, t),
+      mtime: async p => (await $.fs.stat(p)).mtimeMs,
+    },
     kv: { get: k => $.store.get(k), set: (k, v) => $.store.set(k, v) },
     now: () => Date.now(),
     toolNames: async () => (await $.tool.list()).map(t => t.name),

@@ -129,6 +129,29 @@ export const mergeMemories = (a: Memory, b: Memory): Memory => {
   return { facts, tombstones }
 }
 
+// Sync merge when the project file exists: the file is the authority. Its facts count
+// as seen when the file was last changed (mtime), so a hand edit beats an older remote
+// copy. A remote fact missing from the file is taken only when it is newer than the
+// file; otherwise it was deleted by hand and gets a tombstone at mtime, so it doesn't
+// come back. Remote env facts are left out: the env scan finds them again.
+export const mergeWithFile = (file: Memory, remote: Memory, mtime: number): Memory => {
+  const local: Memory = { ...file, facts: file.facts.map(f => ({ ...f, lastSeen: Math.max(f.lastSeen, mtime) })) }
+  const inFile = new Set(local.facts.map(f => f.id))
+  const tombstones: Record<string, number> = { ...remote.tombstones }
+  const facts: Fact[] = []
+  for (const f of remote.facts) {
+    if (f.source === 'env') {
+      continue
+    }
+    if (inFile.has(f.id) || f.lastSeen > mtime) {
+      facts.push(f)
+    } else {
+      tombstones[f.id] = Math.max(mtime, tombstones[f.id] ?? 0)
+    }
+  }
+  return mergeMemories(local, { facts, tombstones })
+}
+
 // What applies inside the current project: project facts, plus personal facts
 // about subjects the project says nothing about.
 export const combine = (personal: Memory, project: Memory): Fact[] => {

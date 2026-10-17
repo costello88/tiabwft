@@ -12,6 +12,8 @@ export type Files = {
   exists: (path: string) => Promise<boolean>
   read: (path: string) => Promise<string>
   write: (path: string, text: string) => Promise<void>
+  /** When the file was last changed (epoch ms), or undefined when unknown. */
+  mtime?: (path: string) => Promise<number | undefined>
 }
 export type KV = {
   get: (key: string) => Promise<unknown>

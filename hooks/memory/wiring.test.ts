@@ -218,3 +218,30 @@ test('a forget press in the panel refreshes the prompt section', async ($, on) =
   await ui.unmount()
   expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').not.toContain('- Zapier: too expensive')
 })
+
+const SYNC = { azureSyncUrl: 'https://x.azurewebsites.net/api/memory', azureSyncKey: 'k' }
+const fetched: string[] = []
+const azureEngine = (on: On, project: object, mtimeMs: number) => {
+  engine(on)
+  fetched.length = 0
+  on('fs.stat', async () => ({ value: { kind: 'file', size: 1, mtimeMs, isLink: false } as never }))
+  on('clock.sleep', () => new Promise(() => {}))
+  on('http.fetch', async (_$, e) => {
+    fetched.push(`${e.init?.method ?? 'GET'} ${e.url} ${e.init?.body ?? ''}`)
+    const body = e.init?.method === 'PUT' ? '' : JSON.stringify(e.url.includes('partition=personal') ? { facts: [], tombstones: {} } : project)
+    return { value: { status: e.init?.method === 'PUT' ? 204 : 200, ok: true, headers: {}, text: body } }
+  })
+}
+
+test('with Azure sync, a fact deleted by hand from memory.md stays deleted', { options: SYNC }, async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  const T = Date.parse('2026-10-17T12:00:00Z')
+  const make = { id: 'rejection:make', kind: 'rejection', scope: 'project', subject: 'Make', text: 'too fiddly', source: 'conversation', firstSeen: T - 5000, lastSeen: T - 5000 }
+  azureEngine(on, { facts: [make], tombstones: {} }, T)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect((await runCommand($, 'memory')).text).not.toContain('Make')
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
+  expect(fetched.some(f => f.startsWith('PUT') && f.includes('partition=project') && f.includes('"rejection:make":'))).toBe(true)
+})

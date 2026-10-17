@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { ModelCompleteResult } from 'claude-code'
 
-import type { Memory } from '../../types'
+import type { Fact, Memory } from '../../types'
 import { emptyMemory, factId } from './facts'
 import { applyLearned, forgetById, forgetMatching, learn, loadAll, persistAll, rememberText } from './session'
 import type { MemoryDeps } from './session'
@@ -175,4 +175,57 @@ test('persistAll does not rewrite a project file whose text would not change', a
   const after = await persistAll(counting, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
   expect(writes).toBe(0)
   expect(after.text).toBe(canonical)
+})
+
+const T = Date.parse('2026-10-17T12:00:00Z')
+const remoteFact = (kind: Fact['kind'], subject: string, text: string, lastSeen: number): Fact =>
+  ({ id: factId(kind, subject), kind, scope: 'project', subject, text, source: 'conversation', firstSeen: lastSeen, lastSeen })
+// A mocked Azure: GET answers the given project memory, PUT bodies are recorded.
+const azureWith = (project: Memory, puts: string[] = []) => ({
+  config: { url: 'https://x/api/memory', key: 'k' },
+  fetch: async (url: string, init?: { method?: string; body?: string }) => {
+    if (init?.method === 'PUT') {
+      puts.push(`${url} ${init.body ?? ''}`)
+      return { ok: true, status: 204, text: '' }
+    }
+    return { ok: true, status: 200, text: JSON.stringify(url.includes('personal') ? emptyMemory() : project) }
+  },
+  sleep: () => new Promise<void>(() => {}),
+})
+const withMtime = (deps: MemoryDeps, mtime: number): MemoryDeps => ({ ...deps, files: { ...deps.files, mtime: async () => mtime } })
+
+test('with Azure, a fact deleted by hand from the file stays deleted', async () => {
+  const remote: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', T - 5000), remoteFact('rejection', 'Make', 'too fiddly', T - 5000)], tombstones: {} }
+  const puts: string[] = []
+  const { deps } = makeDeps({ azure: azureWith(remote, puts) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  const loaded = await loadAll(withMtime(deps, T))
+  expect(loaded.project.facts.map(f => f.subject)).toEqual(['Zapier'])
+  expect(loaded.project.tombstones[factId('rejection', 'Make')]).toBe(T)
+  await persistAll(withMtime(deps, T), { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
+  const sent = puts.find(p => p.includes('partition=project')) ?? ''
+  expect(sent).toContain('"rejection:make":')
+  expect(sent).not.toContain('too fiddly')
+})
+
+test('with Azure, a hand-edited text wins over an older remote copy', async () => {
+  const remote: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', T - 5000)], tombstones: {} }
+  const { deps } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: far too pricey (said, 2026-10-17)\n' })
+  const loaded = await loadAll(withMtime(deps, T))
+  expect(loaded.project.facts.map(f => f.text)).toEqual(['far too pricey'])
+  expect(loaded.project.facts[0]!.lastSeen).toBe(T)
+})
+
+test('with Azure, a remote fact newer than the file is taken, and so is a newer remote edit', async () => {
+  const remote: Memory = { facts: [remoteFact('stack', 'Supabase', 'auth', T + 5000), remoteFact('rejection', 'Zapier', 'never again', T + 5000)], tombstones: {} }
+  const { deps } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  const loaded = await loadAll(withMtime(deps, T))
+  expect(loaded.project.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['Supabase:auth', 'Zapier:never again'])
+  expect(loaded.project.tombstones).toEqual({})
+})
+
+test('without a project file, Azure facts are taken as before', async () => {
+  const remote: Memory = { facts: [remoteFact('rejection', 'Make', 'too fiddly', T - 5000)], tombstones: {} }
+  const { deps } = makeDeps({ azure: azureWith(remote) })
+  const loaded = await loadAll(withMtime(deps, T))
+  expect(loaded.project.facts.map(f => f.subject)).toEqual(['Make'])
 })
