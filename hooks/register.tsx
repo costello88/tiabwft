@@ -1,7 +1,11 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
-import type { Suggestion } from '../types'
+import type { Memory, Suggestion } from '../types'
+import { emptyMemory } from './memory/facts'
+import { renderMemorySection } from './memory/inject'
+import { learn, loadAll, persistAll } from './memory/session'
+import type { MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
 
@@ -12,6 +16,34 @@ const PANE_TITLE = '💡 Better way'
 const enabled = atom({ plugin: 'tiabwft', key: 'enabled' } as const, true)
 const latest = atom({ plugin: 'tiabwft', key: 'latest' } as const, null as Suggestion | null)
 const count = atom({ plugin: 'tiabwft', key: 'count' } as const, 0)
+const personalAtom = atom({ plugin: 'tiabwft', key: 'personal' } as const, emptyMemory() as Memory)
+const projectAtom = atom({ plugin: 'tiabwft', key: 'project' } as const, emptyMemory() as Memory)
+const freshAtom = atom({ plugin: 'tiabwft', key: 'fresh' } as const, [] as string[])
+const pausedAtom = atom({ plugin: 'tiabwft', key: 'paused' } as const, false)
+const unreadableAtom = atom({ plugin: 'tiabwft', key: 'unreadable' } as const, 0)
+
+// The user's prompt per main-loop turn, for the reader. Lost on reload, which only skips one read.
+const prompts = new Map<string, string>()
+// Whether the project file existed at load, so persistAll knows if writing it is new.
+let fileExisted = false
+// Whether the project file existed but could not be read, so persistAll never overwrites it.
+let readFailed = false
+
+const memoryDeps = async ($: EngineInterface, options: Record<string, unknown>): Promise<MemoryDeps> => {
+  const url = typeof options.azureSyncUrl === 'string' ? options.azureSyncUrl.trim() : ''
+  const key = typeof options.azureSyncKey === 'string' ? options.azureSyncKey : ''
+  return {
+    root: await $.session.root(),
+    files: { exists: p => $.fs.exists(p), read: p => $.fs.read(p), write: (p, t) => $.fs.write(p, t) },
+    kv: { get: k => $.store.get(k), set: (k, v) => $.store.set(k, v) },
+    now: () => Date.now(),
+    toolNames: async () => (await $.tool.list()).map(t => t.name),
+    complete: request => $.model.complete(request),
+    ...(url === '' || key === ''
+      ? {}
+      : { azure: { config: { url, key }, fetch: (u, init) => $.http.fetch(u, init), sleep: ms => $.clock.sleep(ms) } }),
+  }
+}
 
 const CORE = `# There is a better way for that (tiabwft)
 
@@ -87,8 +119,17 @@ export const sessionFacts = (f: Facts): string => {
   return `## Live session facts (for model, cost and settings tips)\n${lines.join('\n')}\nFor model, token-saving and settings advice, use the tiabwft skill's references/models-and-costs.md.`
 }
 
+const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, personal: Memory, project: Memory) => {
+  const memoryOptions: MemoryOptions = { projectFile: options.projectFile === 'ignore' ? 'ignore' : 'commit' }
+  await update($, personalAtom, () => personal)
+  await update($, projectAtom, () => project)
+  await persistAll(await memoryDeps($, options), memoryOptions, personal, project, fileExisted, readFailed).catch(() => undefined)
+  fileExisted = fileExisted || project.facts.some(f => f.source !== 'env')
+}
+
 export const register: Register = (on, options) => {
   const protocol = protocolFor(options.mode)
+  const memoryOn = options.memory !== 'off'
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -97,6 +138,25 @@ export const register: Register = (on, options) => {
     })
     if (protocol !== undefined) {
       void $.ui.open({ id: PANE, title: PANE_TITLE })
+    }
+    if (memoryOn && protocol !== undefined) {
+      try {
+        const loaded = await loadAll(await memoryDeps($, options))
+        fileExisted = loaded.fileExisted
+        readFailed = loaded.readFailed === true
+        await update($, unreadableAtom, () => loaded.unreadable)
+        await saveMemory($, options, loaded.personal, loaded.project)
+      } catch {
+        // Memory is best effort: tiabwft works without it.
+      }
+    }
+
+    return next(e)
+  })
+
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      prompts.set(e.turnId, e.text)
     }
 
     return next(e)
@@ -110,6 +170,23 @@ export const register: Register = (on, options) => {
       if (found !== undefined) {
         await update($, latest, () => found)
         await update($, count, n => n + 1)
+      }
+      const prompt = prompts.get(e.turnId) ?? ''
+      prompts.delete(e.turnId)
+      if (memoryOn && protocol !== undefined && !(await read($, pausedAtom))) {
+        const answer = e.answer
+        void (async () => {
+          try {
+            const deps = await memoryDeps($, options)
+            const learned = await learn(deps, prompt, answer, await read($, personalAtom), await read($, projectAtom))
+            if (learned.fresh.length > 0) {
+              await saveMemory($, options, learned.personal, learned.project)
+            }
+            await update($, freshAtom, () => learned.fresh)
+          } catch {
+            // A failed read is skipped; the next turn tries again.
+          }
+        })()
       }
     }
 
@@ -175,9 +252,12 @@ export const register: Register = (on, options) => {
       rateLimitPercent: Math.max(0, ...(usage?.rateLimits ?? []).map(limit => limit.percentUsed)),
     })
 
+    const memorySection = memoryOn ? renderMemorySection(await read($, personalAtom), await read($, projectAtom)) : undefined
+    const text = [protocol, facts, memorySection].filter((part): part is string => part !== undefined).join('\n\n')
+
     return {
       ...composed,
-      sections: [...composed.sections, { id: SECTION_ID, text: `${protocol}\n\n${facts}`, scope: 'session' as const }],
+      sections: [...composed.sections, { id: SECTION_ID, text, scope: 'session' as const }],
     }
   })
 }
