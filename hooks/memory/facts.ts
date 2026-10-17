@@ -26,7 +26,7 @@ const isKind = (value: unknown): value is FactKind => typeof value === 'string' 
 const sameSubject = (a: Fact, b: Fact): boolean => normaliseSubject(a.subject) === normaliseSubject(b.subject)
 
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001F\u007F]/
+const CONTROL_CHARS = /[\u0000-\u001F\u007F\u0085  ]/
 
 // Validates anything that claims to be a fact (the reader's JSON, a stored row) and
 // returns a clean Fact, or undefined when any rule fails.
@@ -47,7 +47,8 @@ export const toFact = (draft: unknown, source: FactSource, now: number, defaultS
   if (!isKind(d.kind)) {
     return undefined
   }
-  if (subject.length < 1 || subject.length > LIMITS.subject || text.length < 1 || text.length > LIMITS.text) {
+  // memory.md lines read "subject: text", so a subject may not hold a colon.
+  if (subject.length < 1 || subject.length > LIMITS.subject || subject.includes(':') || text.length < 1 || text.length > LIMITS.text) {
     return undefined
   }
   if (reason !== undefined && reason.length > LIMITS.reason) {
