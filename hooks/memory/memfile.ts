@@ -25,12 +25,14 @@ export const KEPT_HEADING = "## Couldn't read (kept as written)"
 // kept: the raw lines (headings included) that couldn't be read, in file order.
 export type ParsedFile = { memory: Memory; unreadable: number; kept: string[] }
 
-// Only project facts belong in the project file; personal facts live in $.store.
+// Only project facts belong in the project file; personal facts live in $.store. Env
+// facts are left out too: the scan finds them again at every start, and they differ per
+// machine (connectors), so writing them would churn and publish a committed file.
 export const renderMemoryFile = (memory: Memory, kept: readonly string[] = []): string => {
   const lines = [MEMORY_FILE_HEADER]
   for (const [kind, title] of SECTIONS) {
     const facts = memory.facts
-      .filter(f => f.scope === 'project' && f.kind === kind)
+      .filter(f => f.scope === 'project' && f.source !== 'env' && f.kind === kind)
       .sort((a, b) => a.firstSeen - b.firstSeen || bySubject(a.subject, b.subject))
     if (facts.length === 0) {
       continue

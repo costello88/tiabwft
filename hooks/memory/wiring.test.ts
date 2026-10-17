@@ -245,3 +245,20 @@ test('with Azure sync, a fact deleted by hand from memory.md stays deleted', { o
   expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
   expect(fetched.some(f => f.startsWith('PUT') && f.includes('partition=project') && f.includes('"rejection:make":'))).toBe(true)
 })
+
+test('env facts are never written to memory.md, so an unchanged file stays untouched', async ($, on) => {
+  files.clear()
+  const canonical = '<!-- tiabwft memory: edit freely, one fact per line -->\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'
+  files.set('/repo/.claude/tiabwft/memory.md', canonical)
+  files.set('/repo/package.json', '{"dependencies":{"stripe":"1"}}')
+  engine(on, false, '{"facts":[{"kind":"decision","scope":"project","subject":"Vercel","text":"team knows it"}],"suggested":[]}')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect((await runCommand($, 'memory')).text).toContain('Stripe')
+  expect(memoryWrites).toBe(0)
+  await runTurn($, 'e1')
+  const text = files.get('/repo/.claude/tiabwft/memory.md') ?? ''
+  expect(text).toContain('- Vercel: team knows it')
+  expect(text).not.toContain('Stripe')
+  expect(text).not.toContain('(env,')
+})

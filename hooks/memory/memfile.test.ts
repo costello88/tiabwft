@@ -9,7 +9,7 @@ const fact = (over: Partial<Fact> & Pick<Fact, 'kind' | 'subject' | 'text'>): Fa
   id: factId(over.kind, over.subject), scope: 'project', source: 'conversation', firstSeen: DAY, lastSeen: DAY, ...over,
 })
 
-test('renders grouped, dated lines and skips personal facts', async () => {
+test('renders grouped, dated lines and skips personal and env facts', async () => {
   const text = renderMemoryFile({
     facts: [
       fact({ kind: 'rejection', subject: 'Zapier', text: 'too expensive', reason: 'per task pricing' }),
@@ -20,8 +20,6 @@ test('renders grouped, dated lines and skips personal facts', async () => {
   })
   expect(text).toBe([
     MEMORY_FILE_HEADER,
-    '## Stack',
-    '- Supabase: seen in package.json (env, 2026-10-17)',
     '## Rejected',
     '- Zapier: too expensive; per task pricing (said, 2026-10-17)',
     '',
@@ -30,7 +28,7 @@ test('renders grouped, dated lines and skips personal facts', async () => {
 
 test('a rendered file parses back to the same facts', async () => {
   const facts = [
-    fact({ kind: 'stack', subject: 'Supabase', text: 'seen in package.json', source: 'env' }),
+    fact({ kind: 'stack', subject: 'Supabase', text: 'database and auth', source: 'conversation' }),
     fact({ kind: 'decision', subject: 'Vercel', text: 'team knows it', source: 'user' }),
   ]
   const parsed = parseMemoryFile(renderMemoryFile({ facts, tombstones: {} }), 0)
@@ -140,4 +138,10 @@ test('a valid-looking line under the kept heading stays kept, not parsed', async
   const parsed = parseMemoryFile(`${KEPT_HEADING}\n- Vercel: hosting (said, 2026-10-17)\n`, DAY)
   expect(parsed.memory.facts).toEqual([])
   expect(parsed.kept).toEqual(['- Vercel: hosting (said, 2026-10-17)'])
+})
+
+test('env lines in an older file still load', async () => {
+  const parsed = parseMemoryFile('## Stack\n- Supabase: seen in package.json (env, 2026-10-17)\n', DAY)
+  expect(parsed.memory.facts.map(f => f.source)).toEqual(['env'])
+  expect(renderMemoryFile(parsed.memory)).toBe(`${MEMORY_FILE_HEADER}\n`)
 })
