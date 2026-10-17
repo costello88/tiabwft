@@ -182,6 +182,8 @@ export const register: Register = (on, options) => {
   const memoryOn = options.memory !== 'off'
 
   on('session.start', async ($, e, next) => {
+    // Every session starts unloaded, whichever branch below runs.
+    memoryLoaded = false
     await $.command.register({
       name: 'tiabwft',
       description: 'There is a better way for that: /tiabwft on|off|panel, /tiabwft memory [off|on|reset], /tiabwft forget <text>, /tiabwft remember <text>',
