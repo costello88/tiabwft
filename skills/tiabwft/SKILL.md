@@ -1,6 +1,7 @@
 ---
 name: tiabwft
-description: There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand.
+description: >-
+  There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand. Gives the whole stack: model, automation, connectors, skills and plugins, GitHub repos, data, cost and safety.
 ---
 
 # There is a better way for that
