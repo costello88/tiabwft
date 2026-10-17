@@ -18,7 +18,11 @@ export type MemoryDeps = {
   azure?: { config: AzureConfig; fetch: Fetch; sleep: (ms: number) => Promise<void> }
 }
 export type MemoryOptions = { projectFile: 'commit' | 'ignore' }
-export type Loaded = { personal: Memory; project: Memory; unreadable: number; fileExisted: boolean; readFailed?: boolean }
+// What a save needs to know about the project file: whether it exists, whether it
+// couldn't be read (then it is never written), its unreadable lines (written back
+// unchanged) and the text it holds now (an unchanged render is not written).
+export type FileState = { existed: boolean; readFailed?: boolean; kept?: readonly string[]; text?: string }
+export type Loaded = { personal: Memory; project: Memory; unreadable: number; file: FileState }
 
 const AZURE_TIMEOUT_MS = 2000
 const AZURE_SAVE_TIMEOUT_MS = 5000
@@ -56,14 +60,24 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
       }
     }
   }
-  return { personal, project, unreadable: file.unreadable, fileExisted: file.existed, readFailed: file.readFailed }
+  return {
+    personal,
+    project,
+    unreadable: file.unreadable,
+    file: { existed: file.existed, readFailed: file.readFailed, kept: file.kept, text: file.text },
+  }
 }
 
-export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, fileExisted: boolean, readFailed = false): Promise<void> => {
+// Returns the file state after the save, for the next save to compare with.
+export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, personal: Memory, project: Memory, file: FileState): Promise<FileState> => {
   await savePersonal(deps.kv, personal).catch(() => undefined)
-  const worthAFile = fileExisted || project.facts.some(f => f.source !== 'env')
-  if (worthAFile && !readFailed) {
-    await saveProject(deps.files, deps.root, project, options.projectFile).catch(() => undefined)
+  let next = file
+  const worthAFile = file.existed || project.facts.some(f => f.source !== 'env')
+  if (worthAFile && file.readFailed !== true) {
+    const text = await saveProject(deps.files, deps.root, project, options.projectFile, file.kept ?? [], file.text).catch(() => undefined)
+    if (text !== undefined) {
+      next = { ...file, existed: true, text }
+    }
   }
   if (deps.azure !== undefined) {
     const { config, fetch, sleep } = deps.azure
@@ -74,6 +88,7 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
       bounded(partitionFor(deps).then(partition => azureSave(fetch, config, partition, project))),
     ])
   }
+  return next
 }
 
 const place = (personal: Memory, project: Memory, facts: readonly Fact[]): { personal: Memory; project: Memory } => {

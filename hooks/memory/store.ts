@@ -29,23 +29,40 @@ export const loadPersonal = async (kv: KV): Promise<Memory> => asMemory(await kv
 
 export const savePersonal = (kv: KV, memory: Memory): Promise<void> => kv.set(PERSONAL_KEY, memory)
 
-export const loadProject = async (files: Files, root: string): Promise<ParsedFile & { existed: boolean; readFailed?: boolean }> => {
-  const path = join(root, PROJECT_FILE)
+export const projectFilePath = (root: string): string => join(root, PROJECT_FILE)
+
+// text: the file as it was read, so a save that would write the same text can skip the write.
+export type LoadedFile = ParsedFile & { existed: boolean; readFailed?: boolean; text?: string }
+
+export const loadProject = async (files: Files, root: string): Promise<LoadedFile> => {
+  const path = projectFilePath(root)
   try {
     if (!(await files.exists(path))) {
-      return { memory: emptyMemory(), unreadable: 0, existed: false }
+      return { memory: emptyMemory(), unreadable: 0, kept: [], existed: false }
     }
-    return { ...parseMemoryFile(await files.read(path), Date.now()), existed: true }
+    const text = await files.read(path)
+    return { ...parseMemoryFile(text, Date.now()), existed: true, text }
   } catch {
     // The file may be there but unreadable: never report it as new.
-    return { memory: emptyMemory(), unreadable: 1, existed: true, readFailed: true }
+    return { memory: emptyMemory(), unreadable: 1, kept: [], existed: true, readFailed: true }
   }
 }
 
-export const saveProject = async (files: Files, root: string, memory: Memory, mode: 'commit' | 'ignore'): Promise<void> => {
-  await files.write(join(root, PROJECT_FILE), renderMemoryFile(memory))
+// Writes the file only when its text changes, and returns the text the file now holds.
+export const saveProject = async (
+  files: Files,
+  root: string,
+  memory: Memory,
+  mode: 'commit' | 'ignore',
+  kept: readonly string[] = [],
+  previous?: string,
+): Promise<string> => {
+  const text = renderMemoryFile(memory, kept)
+  if (text !== previous) {
+    await files.write(projectFilePath(root), text)
+  }
   if (mode !== 'ignore') {
-    return
+    return text
   }
   const gitignore = join(root, '.gitignore')
   const current = (await files.exists(gitignore)) ? await files.read(gitignore) : ''
@@ -53,6 +70,7 @@ export const saveProject = async (files: Files, root: string, memory: Memory, mo
     const glue = current === '' || current.endsWith('\n') ? '' : '\n'
     await files.write(gitignore, `${current}${glue}${IGNORE_LINE}\n`)
   }
+  return text
 }
 
 export const loadSuggested = async (kv: KV): Promise<string[]> => {

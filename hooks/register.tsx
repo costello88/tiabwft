@@ -5,7 +5,7 @@ import type { Fact, Memory, Suggestion } from '../types'
 import { combine, deleteFact, emptyMemory, mergeFact } from './memory/facts'
 import { renderMemorySection } from './memory/inject'
 import { applyLearned, forgetMatching, learn, loadAll, persistAll, rememberText } from './memory/session'
-import type { MemoryDeps, MemoryOptions } from './memory/session'
+import type { FileState, MemoryDeps, MemoryOptions } from './memory/session'
 import { extractSuggestion } from './suggestion'
 export { extractSuggestion } from './suggestion'
 
@@ -24,10 +24,9 @@ const unreadableAtom = atom({ plugin: 'tiabwft', key: 'unreadable' } as const, 0
 
 // The user's prompt per main-loop turn, for the reader. Lost on reload, which only skips one read.
 const prompts = new Map<string, string>()
-// Whether the project file existed at load, so persistAll knows if writing it is new.
-let fileExisted = false
-// Whether the project file existed but could not be read, so persistAll never overwrites it.
-let readFailed = false
+// The project file as last loaded or saved (see FileState). Until a load succeeds it
+// counts as unreadable, so nothing overwrites a file that may exist unread.
+let fileState: FileState = { existed: false, readFailed: true }
 
 const memoryDeps = async ($: EngineInterface, options: Record<string, unknown>): Promise<MemoryDeps> => {
   const url = typeof options.azureSyncUrl === 'string' ? options.azureSyncUrl.trim() : ''
@@ -123,8 +122,7 @@ const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, 
   const memoryOptions: MemoryOptions = { projectFile: options.projectFile === 'ignore' ? 'ignore' : 'commit' }
   await update($, personalAtom, () => personal)
   await update($, projectAtom, () => project)
-  await persistAll(await memoryDeps($, options), memoryOptions, personal, project, fileExisted, readFailed).catch(() => undefined)
-  fileExisted = fileExisted || project.facts.some(f => f.source !== 'env')
+  fileState = await persistAll(await memoryDeps($, options), memoryOptions, personal, project, fileState).catch(() => fileState)
 }
 
 type MemoryPair = { personal: Memory; project: Memory }
@@ -192,20 +190,19 @@ export const register: Register = (on, options) => {
       void $.ui.open({ id: PANE, title: PANE_TITLE })
     }
     if (memoryOn && protocol !== undefined) {
-      fileExisted = false
       // Until a load succeeds, never write the project file: it may exist unread.
-      readFailed = true
+      fileState = { existed: false, readFailed: true }
       memoryLoaded = false
       try {
         const loaded = await loadAll(await memoryDeps($, options))
-        fileExisted = loaded.fileExisted
-        readFailed = loaded.readFailed === true
+        fileState = loaded.file
         await update($, unreadableAtom, () => loaded.unreadable)
         await update($, personalAtom, () => loaded.personal)
         await update($, projectAtom, () => loaded.project)
         memoryLoaded = true
-        // The persist may wait on Azure for seconds; session start does not.
-        void saveMemory($, options, loaded.personal, loaded.project).catch(() => undefined)
+        // Saves what the load merged (Azure, the env scan); the file is written only if
+        // its text changed. The persist may wait on Azure for seconds; session start does not.
+        void mutateMemory($, options, (personal, project) => ({ personal, project }))
       } catch {
         // Memory is best effort: tiabwft works without it.
       }
@@ -297,7 +294,7 @@ export const register: Register = (on, options) => {
           </Box>
         ))}
         {known.length > MAX_SHOWN && <Text key="mem-more" dimColor>{`+${known.length - MAX_SHOWN} more (see /tiabwft memory)`}</Text>}
-        {unreadable > 0 && <Text key="mem-unreadable" dimColor>{`${unreadable} line(s) in .claude/tiabwft/memory.md couldn't be read and were skipped.`}</Text>}
+        {unreadable > 0 && <Text key="mem-unreadable" dimColor>{`${unreadable} line(s) in .claude/tiabwft/memory.md couldn't be read. They are kept as written at the end of the file.`}</Text>}
       </Box>
     )
     if (shown === null) {

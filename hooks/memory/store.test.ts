@@ -35,7 +35,7 @@ test('personal memory round-trips through the store', async () => {
 
 test('a missing project file loads empty; a saved one round-trips', async () => {
   const { files, data } = memFiles()
-  expect(await loadProject(files, '/repo')).toEqual({ memory: { facts: [], tombstones: {} }, unreadable: 0, existed: false })
+  expect(await loadProject(files, '/repo')).toEqual({ memory: { facts: [], tombstones: {} }, unreadable: 0, kept: [], existed: false })
   await saveProject(files, '/repo', one, 'commit')
   expect(data.has(`/repo/${PROJECT_FILE}`)).toBe(true)
   expect((await loadProject(files, '/repo')).memory.facts.map(f => f.subject)).toEqual(['Vercel'])

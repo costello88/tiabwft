@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Fact } from '../../types'
 import { factId } from './facts'
-import { MEMORY_FILE_HEADER, parseMemoryFile, renderMemoryFile } from './memfile'
+import { KEPT_HEADING, MEMORY_FILE_HEADER, parseMemoryFile, renderMemoryFile } from './memfile'
 
 const DAY = Date.parse('2026-10-17T00:00:00Z')
 const fact = (over: Partial<Fact> & Pick<Fact, 'kind' | 'subject' | 'text'>): Fact => ({
@@ -103,4 +103,41 @@ test('a reason survives the round trip as its own field', async () => {
   expect(parsed.unreadable).toBe(0)
   expect(parsed.memory.facts[0]!.text).toBe('too expensive')
   expect(parsed.memory.facts[0]!.reason).toBe('per task')
+})
+
+test('unreadable lines are kept as written under a final heading, and that section is not parsed', async () => {
+  const long = `- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)`
+  const parsed = parseMemoryFile([
+    MEMORY_FILE_HEADER,
+    '## Notes',
+    '- free text',
+    '## Stack',
+    long,
+    '- Vercel: hosting (said, 2026-10-17)',
+  ].join('\n'), DAY)
+  expect(parsed.memory.facts.map(f => f.subject)).toEqual(['Vercel'])
+  expect(parsed.unreadable).toBe(2)
+  expect(parsed.kept).toEqual(['## Notes', '- free text', long])
+  const text = renderMemoryFile(parsed.memory, parsed.kept)
+  expect(text).toBe([
+    MEMORY_FILE_HEADER,
+    '## Stack',
+    '- Vercel: hosting (said, 2026-10-17)',
+    KEPT_HEADING,
+    '## Notes',
+    '- free text',
+    long,
+    '',
+  ].join('\n'))
+  const again = parseMemoryFile(text, DAY)
+  expect(again.memory.facts).toEqual(parsed.memory.facts)
+  expect(again.kept).toEqual(parsed.kept)
+  expect(again.unreadable).toBe(2)
+  expect(renderMemoryFile(again.memory, again.kept)).toBe(text)
+})
+
+test('a valid-looking line under the kept heading stays kept, not parsed', async () => {
+  const parsed = parseMemoryFile(`${KEPT_HEADING}\n- Vercel: hosting (said, 2026-10-17)\n`, DAY)
+  expect(parsed.memory.facts).toEqual([])
+  expect(parsed.kept).toEqual(['- Vercel: hosting (said, 2026-10-17)'])
 })

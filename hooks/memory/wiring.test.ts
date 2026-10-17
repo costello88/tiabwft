@@ -12,12 +12,14 @@ declare const setTimeout: (fn: () => void, ms: number) => unknown
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 25))
 const LONG = 'I use Supabase for everything and never want Zapier again, it is too expensive'
 let modelCalls = 0
+let memoryWrites = 0
 // Each call to the model waits on a resolver the test calls by hand.
 const pending: Array<(value: unknown) => void> = []
 
 let seed: Record<string, unknown> = {}
 const engine = (on: On, isHanging = false, reply = '{"facts":[],"suggested":[]}', isManual = false) => {
   modelCalls = 0
+  memoryWrites = 0
   pending.length = 0
   mock.store(on, seed)
   seed = {}
@@ -31,7 +33,7 @@ const engine = (on: On, isHanging = false, reply = '{"facts":[],"suggested":[]}'
   on('tool.list', async () => ({ value: [] }))
   on('fs.exists', async (_$, e) => ({ value: files.has(key(e.path)) }))
   on('fs.read', async (_$, e) => (files.has(key(e.path)) ? { value: files.get(key(e.path))! } : { deny: 'missing' }))
-  on('fs.write', async (_$, e) => { files.set(key(e.path), e.text); return { value: undefined } })
+  on('fs.write', async (_$, e) => { if (key(e.path).endsWith('memory.md')) memoryWrites += 1; files.set(key(e.path), e.text); return { value: undefined } })
   on('model.complete', isManual
     ? () => { modelCalls += 1; return new Promise(resolve => { pending.push(resolve as (value: unknown) => void) }) }
     : isHanging
@@ -152,4 +154,26 @@ test('a forget press while a learn is pending keeps the delete and still adds th
   expect(await ui.find({ key: 'forget-stack:supabase' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /\u2728/ })).toBeDefined()
   await ui.unmount()
+})
+
+test('a session start with unchanged memory does not write the file', async ($, on) => {
+  files.clear()
+  const canonical = '<!-- tiabwft memory: edit freely, one fact per line -->\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'
+  files.set('/repo/.claude/tiabwft/memory.md', canonical)
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect(memoryWrites).toBe(0)
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).toBe(canonical)
+})
+
+test('unreadable lines survive a session start and a learn', async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Notes\n- free text\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  engine(on, false, '{"facts":[{"kind":"stack","scope":"project","subject":"Supabase","text":"uses it for everything"}],"suggested":[]}')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await runTurn($, 'k1')
+  const text = files.get('/repo/.claude/tiabwft/memory.md') ?? ''
+  expect(text).toContain('- Supabase: uses it for everything')
+  expect(text).toContain("## Couldn't read (kept as written)\n## Notes\n- free text\n")
 })

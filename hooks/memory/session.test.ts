@@ -35,7 +35,7 @@ test('loadAll merges the file, the env scan and marks suggested-then-installed a
   })
   await addSuggested(deps.kv, ['Supabase'])
   const loaded = await loadAll(deps)
-  expect(loaded.fileExisted).toBe(true)
+  expect(loaded.file.existed).toBe(true)
   expect(loaded.project.facts.map(f => `${f.kind}:${f.subject}`).sort()).toEqual(['rejection:Zapier', 'stack:Supabase', 'worked:Supabase'])
 })
 
@@ -50,12 +50,12 @@ test('loadAll uses Azure when configured, and still works when it times out', as
 test('persistAll skips the project file for scan-only memory, writes it once a real fact exists', async () => {
   const { deps, data, store } = makeDeps({}, { '/repo/package.json': JSON.stringify({ dependencies: { stripe: '1' } }) })
   const loaded = await loadAll(deps)
-  await persistAll(deps, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.fileExisted)
+  await persistAll(deps, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
   expect(data.has(`/repo/${PROJECT_FILE}`)).toBe(false)
   expect(store.has('memory.personal')).toBe(true)
   const learned = await learn({ ...deps, complete: replyWith({ facts: [{ kind: 'decision', scope: 'project', subject: 'Vercel', text: 'team knows it' }], suggested: ['HubSpot'] }) }, 'We picked Vercel because the team already knows it well', 'ok', loaded.personal, loaded.project)
   expect(learned.fresh).toEqual(['decision:vercel'])
-  await persistAll(deps, { projectFile: 'commit' }, learned.personal, learned.project, false)
+  await persistAll(deps, { projectFile: 'commit' }, learned.personal, learned.project, { existed: false })
   expect(data.get(`/repo/${PROJECT_FILE}`)).toContain('- Vercel: team knows it')
   expect(store.get('memory.suggested')).toEqual(['hubspot'])
 })
@@ -121,10 +121,10 @@ test('persistAll never overwrites a project file that could not be read', async 
   const files = { ...deps.files, read: async (p: string) => { if (p.endsWith('memory.md')) throw new Error('locked'); return deps.files.read(p) } }
   const broken = { ...deps, files }
   const loaded = await loadAll(broken)
-  expect(loaded.fileExisted).toBe(true)
-  expect(loaded.readFailed).toBe(true)
+  expect(loaded.file.existed).toBe(true)
+  expect(loaded.file.readFailed).toBe(true)
   const project: Memory = { facts: [{ id: 'decision:vercel', kind: 'decision', scope: 'project', subject: 'Vercel', text: 'x', source: 'conversation', firstSeen: 1, lastSeen: 1 }], tombstones: {} }
-  await persistAll(broken, { projectFile: 'commit' }, loaded.personal, project, loaded.fileExisted, loaded.readFailed)
+  await persistAll(broken, { projectFile: 'commit' }, loaded.personal, project, loaded.file)
   expect(data.get(`/repo/${PROJECT_FILE}`)).toBe('precious')
 })
 
@@ -138,7 +138,7 @@ test('learn leaves out facts that mergeFact dropped', async () => {
 test('persistAll does not wait on a hanging Azure save', async () => {
   const waits: number[] = []
   const { deps } = makeDeps({ azure: { config: { url: 'https://x', key: 'k' }, fetch: () => new Promise(() => {}), sleep: async ms => { waits.push(ms) } } })
-  await persistAll(deps, { projectFile: 'commit' }, emptyMemory(), emptyMemory(), false)
+  await persistAll(deps, { projectFile: 'commit' }, emptyMemory(), emptyMemory(), { existed: false })
   expect(waits).toContain(5000)
 })
 
@@ -150,4 +150,29 @@ test('applyLearned merges only fresh facts into the current memory and keeps its
   expect(merged.project.facts.map(f => f.id)).toEqual([factId('rejection', 'Zapier')])
   expect(merged.project.tombstones).toEqual({ 'stack:old': 5 })
   expect(applyLearned(current, { ...learned, fresh: [] }).project.facts).toEqual([])
+})
+
+test('a kept unreadable line survives a learn-and-save', async () => {
+  const long = `- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)`
+  const original = ['## Notes', '- free text', '## Stack', long, '## Rejected', '- Zapier: too expensive (said, 2026-10-17)', ''].join('\n')
+  const { deps, data } = makeDeps({}, { [`/repo/${PROJECT_FILE}`]: original })
+  const loaded = await loadAll(deps)
+  expect(loaded.unreadable).toBe(2)
+  const learned = await learn({ ...deps, complete: replyWith({ facts: [{ kind: 'decision', scope: 'project', subject: 'Vercel', text: 'team knows it' }], suggested: [] }) }, 'We picked Vercel because the team already knows it well', 'ok', loaded.personal, loaded.project)
+  await persistAll(deps, { projectFile: 'commit' }, learned.personal, learned.project, loaded.file)
+  const written = data.get(`/repo/${PROJECT_FILE}`) ?? ''
+  expect(written).toContain('- Vercel: team knows it')
+  expect(written).toContain('- Zapier: too expensive')
+  expect(written).toContain("## Couldn't read (kept as written)\n## Notes\n- free text\n" + long + '\n')
+})
+
+test('persistAll does not rewrite a project file whose text would not change', async () => {
+  const canonical = '<!-- tiabwft memory: edit freely, one fact per line -->\n## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'
+  const { deps, data } = makeDeps({}, { [`/repo/${PROJECT_FILE}`]: canonical })
+  let writes = 0
+  const counting = { ...deps, files: { ...deps.files, write: async (p: string, t: string) => { writes += 1; data.set(p, t) } } }
+  const loaded = await loadAll(counting)
+  const after = await persistAll(counting, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
+  expect(writes).toBe(0)
+  expect(after.text).toBe(canonical)
 })
