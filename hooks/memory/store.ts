@@ -94,18 +94,69 @@ export const addSuggested = async (kv: KV, names: readonly string[]): Promise<vo
   await kv.set(SUGGESTED_KEY, unique.slice(-50))
 }
 
-// A GitHub remote names the project everywhere. Otherwise the folder name, cut to the
-// characters the Azure function accepts, plus a hash of the full root path, so two
-// folders with the same name ("api", "web") never share a partition.
-export const projectPartition = async (root: string, gitConfig?: string): Promise<string> => {
-  const m = gitConfig?.match(/url\s*=\s*\S*github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?\s*$/m)
-  if (m?.[1] !== undefined) {
-    return `project:${m[1]}`
+// The url of the "origin" remote in a .git/config, else of the first remote.
+const remoteUrl = (gitConfig: string): string | undefined => {
+  const urls: { remote: string; url: string }[] = []
+  let remote: string | undefined
+  for (const line of gitConfig.split(/\r?\n/)) {
+    const section = line.match(/^\s*\[\s*([^\]\s"]+)(?:\s+"([^"]*)")?\s*\]/)
+    if (section !== null) {
+      remote = section[1]?.toLowerCase() === 'remote' ? section[2] ?? '' : undefined
+      continue
+    }
+    const url = remote === undefined ? null : line.match(/^\s*url\s*=\s*(\S+)\s*$/)
+    if (url?.[1] !== undefined && remote !== undefined) {
+      urls.push({ remote, url: url[1] })
+    }
   }
-  const folder = (root.split(/[\\/]/).filter(Boolean).pop() ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 60)
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(root)))
-  const hash = [...digest.slice(0, 4)].map(b => b.toString(16).padStart(2, '0')).join('')
-  return `project:${folder}-${hash}`
+  return (urls.find(u => u.remote === 'origin') ?? urls[0])?.url
+}
+
+const PARTITION_MAX = 120
+
+// "https://host/owner/repo(.git)", "ssh://git@host:22/owner/repo" or "git@host:owner/repo"
+// as "host/owner/repo", lowercased, with any user, password and port dropped; "owner/repo"
+// for github.com. Undefined for a local path or anything else without a host and a path.
+export const remoteName = (url: string): string | undefined => {
+  const withScheme = url.match(/^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]*@)?([^/:]+)(?::\d*)?\/(.+)$/i)
+  const scpLike = withScheme === null ? url.match(/^(?:[^@/:]+@)?([^/:]+):(?!\/)(.+)$/) : null
+  const parts = withScheme ?? scpLike
+  if (parts?.[1] === undefined || parts[2] === undefined) {
+    return undefined
+  }
+  const host = parts[1].toLowerCase()
+  const segments = parts[2].toLowerCase().replace(/\.git\/*$/, '').split('/')
+    .map(seg => seg.replace(/[^a-z0-9._-]/g, '_'))
+    .filter(seg => seg !== '' && seg !== '.' && seg !== '..')
+  // A one-letter host is a Windows drive (C:\repo), a local path.
+  if (segments.length < 1 || host.length < 2 || !/^[a-z0-9._-]+$/.test(host)) {
+    return undefined
+  }
+  return host === 'github.com' ? segments.join('/') : [host, ...segments].join('/')
+}
+
+const shortHash = async (text: string): Promise<string> => {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))
+  return [...digest.slice(0, 4)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// Forward slashes, no trailing slash, a lowercase drive letter: one folder, one hash.
+export const normaliseRoot = (root: string): string =>
+  root.replace(/\\/g, '/').replace(/\/+$/, '').replace(/^([A-Za-z]):/, (_, drive: string) => `${drive.toLowerCase()}:`)
+
+// A git remote names the project the same on every machine. Without one: the folder
+// name, cut to the characters the Azure function accepts, plus a hash of the full root,
+// so two folders with the same name ("api", "web") never share a partition.
+export const projectPartition = async (root: string, gitConfig?: string): Promise<string> => {
+  const url = gitConfig === undefined ? undefined : remoteUrl(gitConfig)
+  const name = url === undefined ? undefined : remoteName(url)
+  if (name !== undefined) {
+    // A name too long for the function keeps its start and gets a hash of the whole.
+    return `project:${name.length <= PARTITION_MAX ? name : `${name.slice(0, PARTITION_MAX - 9)}-${await shortHash(name)}`}`
+  }
+  const normal = normaliseRoot(root)
+  const folder = (normal.split('/').filter(Boolean).pop() ?? 'unknown').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 60)
+  return `project:${folder}-${await shortHash(normal)}`
 }
 
 const partitionUrl = (config: AzureConfig, partition: string): string =>

@@ -66,6 +66,40 @@ test('projectPartition prefers the GitHub repo, else the folder name plus a hash
   expect(await projectPartition('/home/me/shop')).toBe(await projectPartition('/home/me/shop'))
 })
 
+const remote = (url: string, name = 'origin'): string => `[core]\n\tbare = false\n[remote "${name}"]\n\turl = ${url}\n\tfetch = +refs/heads/*:refs/remotes/${name}/*\n`
+const AZURE_PARTITION = /^(personal|project:[\w./-]{1,120})$/
+
+test('projectPartition names any git host: host/owner/repo, lowercased, user, password and port dropped', async () => {
+  expect(await projectPartition('/a', remote('https://gitlab.com/Group/Sub-Group/My.Repo.git'))).toBe('project:gitlab.com/group/sub-group/my.repo')
+  expect(await projectPartition('/a', remote('git@gitlab.example.com:team/api.git'))).toBe('project:gitlab.example.com/team/api')
+  expect(await projectPartition('/a', remote('ssh://git@git.example.com:2222/team/api.git'))).toBe('project:git.example.com/team/api')
+  expect(await projectPartition('/a', remote('https://user:s3cret@dev.azure.com/org/proj/_git/repo'))).toBe('project:dev.azure.com/org/proj/_git/repo')
+  // github.com keeps the old owner/repo shape; https and ssh give the same partition.
+  expect(await projectPartition('/a', remote('https://github.com/Costello88/CRM.git'))).toBe('project:costello88/crm')
+  expect(await projectPartition('/a', remote('git@github.com:costello88/crm.git'))).toBe('project:costello88/crm')
+  // origin wins over a remote listed before it.
+  expect(await projectPartition('/a', remote('https://gitlab.com/fork/api') + remote('https://gitlab.com/team/api'))).toBe('project:gitlab.com/fork/api')
+  expect(await projectPartition('/a', remote('https://gitlab.com/up/api', 'upstream') + remote('https://gitlab.com/team/api'))).toBe('project:gitlab.com/team/api')
+  for (const url of ['https://gitlab.com/Group/Sub-Group/My.Repo.git', 'https://user:s3cret@dev.azure.com/org/proj/_git/repo', `https://h.example.com/${'x'.repeat(200)}`]) {
+    const p = await projectPartition('/a', remote(url))
+    expect(AZURE_PARTITION.test(p)).toBe(true)
+    expect(p.includes('s3cret')).toBe(false)
+  }
+})
+
+test('projectPartition: a local or file remote falls back to the folder name and a hash', async () => {
+  for (const url of ['C:\\src\\shared.git', '/srv/git/shared.git', 'file:///srv/git/shared.git', '../shared']) {
+    expect(await projectPartition('/home/me/shop', remote(url))).toMatch(/^project:shop-[0-9a-f]{8}$/)
+  }
+})
+
+test('projectPartition normalises the root before hashing', async () => {
+  const p = await projectPartition('C:\\Users\\me\\shop')
+  expect(await projectPartition('c:\\Users\\me\\shop\\')).toBe(p)
+  expect(await projectPartition('C:/Users/me/shop/')).toBe(p)
+  expect(await projectPartition('C:\\Users\\me\\Shop')).not.toBe(p)
+})
+
 test('the last sync round-trips per partition and rejects bad values', async () => {
   const { kv, data } = memKV()
   await saveLastSync(kv, 'project:a/b', { at: 5, ids: ['stack:x'] })

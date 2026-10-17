@@ -46,6 +46,8 @@ check('wrong key -> 401', (await call({ key: 'nope' })).status === 401)
 check('missing key -> 401', (await call({ key: null })).status === 401)
 check('bad partition -> 400', (await call({ partition: 'x/../y' })).status === 400)
 check('folder partition with a hash -> 200', (await call({ partition: 'project:My_Project__-1a2b3c4d' })).status === 200)
+check('any git host partition -> 200', (await call({ partition: 'project:gitlab.example.com/group/sub-group/my.repo' })).status === 200)
+check('azure devops partition -> 200', (await call({ partition: 'project:dev.azure.com/org/proj/_git/repo' })).status === 200)
 
 reset()
 check('tombstones null -> 400, nothing written', (await call({ method: 'PUT', body: { facts: [], tombstones: null } })).status === 400 && writes === 0)

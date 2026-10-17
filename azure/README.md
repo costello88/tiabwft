@@ -45,7 +45,7 @@ In the plugin settings, set:
 
 The URL must start with `https://`; tiabwft ignores any other URL and doesn't sync.
 
-Partitions: `personal` for your profile, `project:<owner>/<repo>` for a project with a GitHub remote, and otherwise `project:<folder name>-<8 hex characters of a hash of the full path>`, so two folders with the same name never share memory.
+Partitions: `personal` for your profile; for a project with a git remote (`origin`, else the first one), `project:<owner>/<repo>` on GitHub and `project:<host>/<path>` on any other host (for example `project:gitlab.com/group/api`), lowercased, without any user name, password or port; and otherwise `project:<folder name>-<8 hex characters of a hash of the full path>`, so two folders with the same name never share memory.
 
 ## Check it
 
