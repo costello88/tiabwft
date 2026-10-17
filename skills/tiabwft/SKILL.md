@@ -1,7 +1,7 @@
 ---
 name: tiabwft
 description: >-
-  There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand.
+  There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand. Gives the whole stack: model, automation, connectors, skills and plugins, GitHub repos, data, cost and safety.
 ---
 
 # There is a better way for that
@@ -67,26 +67,36 @@ Cover the layers that matter for this goal, and skip the rest:
 | Skills / plugins | packaged workflows that do this job already |
 | Workflow | memory (Obsidian, an LLM wiki), automations, side sessions, hooks |
 
-### 5. Hand it over
-Use this shape:
+### 5. Hand it over: the whole stack
+Never stop at one tool. Give the full stack that makes the job better end to end, in the user's language:
 
 **💡 There's a better way**
-1. **<Exact name>**: <why it's better, one line>. → <the one step to get it>
-2. …
-3. …
 
-For a big goal (an agent, an app, a business workflow), also add:
+**Goal:** <one line: what the user is really trying to achieve>
 
-**Recommended stack**
-| Layer | Pick | Why | How to add |
-|---|---|---|---|
+| Layer | Pick | Why | How to add | Status |
+|---|---|---|---|---|
+| 🤖 AI / model | … | … | … | … |
+| ⚙️ Runs on / automation | … | … | … | … |
+| 🔌 Connector: <system> | … (one row per system the job touches) | … | … | … |
+| 🧩 Skill / plugin | … | … | … | … |
+| 📦 From GitHub | owner/repo (★ stars, pushed month) | … | … | … |
+| 🧠 Data / memory | … | … | … | … |
+| 📊 Monitoring / cost | … | … | … | … |
+| 🛡️ Safety | … | … | … | … |
 
-**Start here:** the single first step to take now.
+Status is "already installed", "installed, needs login" or "new". Drop rows that don't matter for this goal; add rows for any other system the job touches.
 
-Then carry on with the actual task, or offer to set up the first suggestion if that's the obvious next step.
+**Flow:** <how the pieces chain: website form → automation → CRM → chat alert → weekly report>
+
+**Alternatives:** <one line: the cheaper/simpler stack, and the bigger/pro one>
+
+**Start here:** <the single first step to take now>
+
+Fill every row from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Render `suggest_connectors` / `SuggestPluginInstall` / `SuggestSkills` cards for the strongest new picks. Then carry on with the actual task, or offer to set up the first step.
 
 ## Rules
-- At most 3 headline suggestions. Fewer good ones beat many weak ones.
+- One clear pick per row, with the reason. Cover the whole job, but skip padding: a row that doesn't help this goal goes.
 - Be specific: "connect the HubSpot connector", not "use a CRM".
 - Mark things the user already has as "(already installed)".
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
