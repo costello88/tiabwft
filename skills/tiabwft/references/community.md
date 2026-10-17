@@ -27,6 +27,7 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 | obra/superpowers-marketplace | superpowers-marketplace | 10 | 1.3k |
 | jeremylongshore/tons-of-skills-marketplace | claude-code-plugins-plus | 434 | 2.8k |
 | ananddtyagi/cc-marketplace | cc-marketplace (quiet since 2026-01) | 119 | 0.7k |
+| trailofbits/skills-curated | skills-curated (community-vetted, by a security firm; checked 2026-10-17) | 29 | 0.5k |
 
 ## MCP servers by category (prefer official ones)
 | Category | Pick | Alternatives / notes |
@@ -62,4 +63,5 @@ gh search repos "<topic> mcp" --sort stars --limit 10 --json fullName,stargazers
 - Check that a repo really is a marketplace: `gh api repos/<owner>/<repo>/contents/.claude-plugin/marketplace.json`.
 - Don't use `gh search code --filename marketplace.json`: it returns lots of unrelated results.
 - Topics with the most repos: mcp-server, agent-skills, claude-skills, claude-code-plugin. claude-code-subagents has too few repos to be useful.
+- Prefer vetted sources when they cover the need: the official Anthropic marketplaces first, then curated ones like trailofbits/skills-curated, then raw search results.
 - Before suggesting an install, read the README and skim the source. Third-party plugins and MCP servers run code on the user's machine.

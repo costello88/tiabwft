@@ -1,7 +1,7 @@
 ---
 name: tiabwft
 description: >-
-  There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", or when a request clearly has a better setup than doing it by hand. Gives the whole stack: model, automation, connectors, skills and plugins, GitHub repos, data, cost and safety.
+  There Is A Better Way For That. Research and recommend the smartest setup for what the user wants to do: which AI model, stack, cloud or host, connectors (MCP servers), skills and plugins, and workflow changes would make it faster, easier or smarter. Use when the user wants to build an agent, app, automation or workflow, asks "what should I use", "what's the best way", "which stack/cloud/AI", which connector or MCP server for <tool>, or when a request clearly has a better setup than doing it by hand. Not for quick one-step tasks like fixing a typo, renaming, or explaining a snippet. Gives the whole stack: model, automation, connectors, skills and plugins, GitHub repos, data, cost and safety.
 ---
 
 # There is a better way for that
@@ -32,6 +32,7 @@ Before you recommend anything, look at what is installed so you don't suggest it
 - connected MCP servers and connectors (the tools in this session; the `mcp-registry` `list_connectors` tool if available)
 - `ListPlugins` and `ListSkills` when available
 - the project itself: package.json, requirements, config files, CLAUDE.md
+- what the user tells you: "I already use HubSpot" counts as installed, even if you can't see it in this session
 
 ### 3. Research live, not from memory
 Tools, models and prices change fast. Use whatever of these this session has:
@@ -40,6 +41,8 @@ Tools, models and prices change fast. Use whatever of these this session has:
 - **AI models, clouds, services, pricing**: `WebSearch` (standard mode first). For Claude models and the Claude API / Agent SDK, use the `claude-api` skill or the `claude-code-guide` agent instead of guessing.
 - **What other people built (GitHub)**: when `gh` is available, search the community live for plugins, skills, MCP servers and agent templates on the topic. Use the queries in `references/community.md` and prefer repos with real stars and a recent push. Read a repo's README before you recommend it, and link it rather than copying from it.
 - `references/catalog.md` next to this file is a starting map of common goals, and `references/community.md` lists the known community marketplaces, skill collections and awesome lists. Treat both as hints to verify, not as the answer.
+
+If this session has none of these research tools, work from the reference files, stick to well-known names you're sure of, and say in one line that the picks weren't checked live.
 
 Never recommend something you couldn't confirm exists. Say so when a pick is your judgment rather than a checked fact. Only suggest installing code from a repo that is well known, maintained and has a readable source.
 
@@ -98,7 +101,7 @@ Fill every row from a lookup (registry, plugin and skill search, `gh search`) or
 ## Rules
 - One clear pick per row, with the reason. Cover the whole job, but skip padding: a row that doesn't help this goal goes.
 - Be specific: "connect the HubSpot connector", not "use a CRM".
-- Mark things the user already has as "(already installed)".
-- Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
+- Mark things the user already has as "(already installed)", including ones they told you about.
+- Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it. "Set it up for me" or "get it working" before they've seen your pick still isn't a yes: name the pick and the step, then ask.
 - No suggestion is better than a padded one. If the user's current way is already the best, say so in one line.
 - Trending isn't the same as right. Recommend a popular stack only when it fits the user's goal, budget and skill level, and pass on the relevant safety warning (untrusted skills, broad tokens, unsandboxed agents).
