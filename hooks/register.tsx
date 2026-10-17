@@ -158,9 +158,12 @@ export const mutateMemory = (
       return undefined
     }
     try {
-      const next = await change(await read($, personalAtom), await read($, projectAtom))
+      const before = { personal: await read($, personalAtom), project: await read($, projectAtom) }
+      const next = await change(before.personal, before.project)
       await saveMemory($, options, next.personal, next.project)
-      if (refreshPrompt) {
+      // A change that changed nothing (a forget that matched nothing, a remember of a fact
+      // already known word for word) keeps the snapshot, and so the prompt cache.
+      if (refreshPrompt && (next.personal !== before.personal || next.project !== before.project)) {
         memorySection = renderMemorySection(next.personal, next.project)
       }
 
@@ -174,6 +177,10 @@ export const mutateMemory = (
 
   return result
 }
+
+// The same fact, word for word: merging it again would change nothing the user sees.
+const sameFact = (a: Fact, b: Fact): boolean =>
+  a.kind === b.kind && a.scope === b.scope && a.subject === b.subject && a.text === b.text && a.reason === b.reason && a.source === b.source
 
 const MAX_SHOWN = 40
 const FORGET_MIN = 3
@@ -416,6 +423,10 @@ export const register: Register = (on, options) => {
         let p = personal
         let j = project
         for (const f of added) {
+          const target = f.scope === 'personal' ? p : j
+          if (target.facts.some(known => known.id === f.id && sameFact(known, f))) {
+            continue
+          }
           if (f.scope === 'personal') {
             p = mergeFact(p, f)
           } else {

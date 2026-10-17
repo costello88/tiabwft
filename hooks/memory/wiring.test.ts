@@ -208,6 +208,35 @@ test('the next session start carries what was learned', async ($, on) => {
   expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toContain('Supabase')
 })
 
+test('a forget that matches nothing and a remember that adds nothing keep the prompt section', async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  engine(on, false, '', true)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const supabase = [{ kind: 'stack', scope: 'project', subject: 'Supabase', text: 'uses it for everything' }]
+  const remember = async (): Promise<void> => {
+    const done = runCommand($, 'remember Supabase is used for everything')
+    await tick()
+    pending.at(-1)!(answered(supabase))
+    await done
+  }
+  await remember()
+  const remembered = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  expect(remembered).toContain('- Supabase: uses it for everything')
+  // Learned in the background: in memory, not in the prompt section.
+  await runTurn($, 'q1')
+  pending.at(-1)!(answered([{ kind: 'decision', scope: 'project', subject: 'Vercel', text: 'team knows it' }]))
+  await tick()
+  expect((await runCommand($, 'memory')).text).toContain('Vercel')
+  expect((await runCommand($, 'forget nothing-like-this')).text).toBe('Nothing matched.')
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toBe(remembered)
+  await remember()
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toBe(remembered)
+  // Control: a forget that does match rebuilds it, with the background fact.
+  await runCommand($, 'forget Zapier')
+  expect((await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? '').toContain('Vercel')
+})
+
 test('a forget press in the panel refreshes the prompt section', async ($, on) => {
   files.clear()
   files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
