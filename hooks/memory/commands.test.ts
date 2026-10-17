@@ -74,3 +74,42 @@ test('memory=off setting refuses the memory commands', { options: { memory: 'off
   await $.session.start({ source: 'startup', cwd: '/repo' } as never)
   expect((await run($, 'memory')).text).toContain('off in the tiabwft settings')
 })
+
+test('env facts survive forget and memory reset confirm', async ($, on) => {
+  files.clear()
+  files.set('/repo/package.json', '{"dependencies":{"stripe":"1"}}')
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await run($, 'memory')).text).toContain('Stripe')
+  expect((await run($, 'forget stripe')).text).toBe('Nothing matched.')
+  expect((await run($, 'memory reset confirm')).text).toContain('deleted')
+  expect((await run($, 'memory')).text).toContain('Stripe')
+})
+
+test('extra spaces in the arguments are collapsed', async ($, on) => {
+  files.clear()
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await run($, 'memory   off')).text).toContain('paused')
+})
+
+test('missing arguments give usage lines', async ($, on) => {
+  files.clear()
+  engine(on)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  expect((await run($, 'forget')).text).toBe('Usage: /tiabwft forget <text>')
+  expect((await run($, 'remember  ')).text).toBe('Usage: /tiabwft remember <text>')
+  expect((await run($, 'memory foo')).text).toBe('Usage: /tiabwft memory [off|on|reset]')
+})
+
+test('mode off: memory commands change nothing and write nothing', { options: { mode: 'off' } }, async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Decisions\n- Vercel: team knows it (you, 2026-10-17)\n')
+  engine(on, '{"facts":[{"kind":"rejection","scope":"project","subject":"Zapier","text":"too expensive"}],"suggested":[]}')
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  const before = files.get('/repo/.claude/tiabwft/memory.md')
+  for (const args of ['remember never suggest Zapier', 'forget vercel', 'memory reset confirm', 'memory']) {
+    expect((await run($, args)).text).toContain("isn't loaded")
+  }
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).toBe(before)
+})

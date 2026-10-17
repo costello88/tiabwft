@@ -129,6 +129,9 @@ const saveMemory = async ($: EngineInterface, options: Record<string, unknown>, 
 
 type MemoryPair = { personal: Memory; project: Memory }
 
+// True only after a session-start load succeeded. Until then nothing may be written: the files may exist unread.
+let memoryLoaded = false
+
 // Every memory change runs one after another on this chain, so two changes never overwrite each other.
 let memoryQueue: Promise<unknown> = Promise.resolve()
 
@@ -138,6 +141,9 @@ export const mutateMemory = (
   change: (personal: Memory, project: Memory) => MemoryPair | Promise<MemoryPair>,
 ): Promise<MemoryPair | undefined> => {
   const run = async (): Promise<MemoryPair | undefined> => {
+    if (!memoryLoaded) {
+      return undefined
+    }
     try {
       const next = await change(await read($, personalAtom), await read($, projectAtom))
       await saveMemory($, options, next.personal, next.project)
@@ -154,6 +160,7 @@ export const mutateMemory = (
 }
 
 const MAX_SHOWN = 40
+const MAX_LISTED = 60
 
 const sourceLabel = (f: Fact): string => {
   if (f.source === 'env') {
@@ -186,6 +193,7 @@ export const register: Register = (on, options) => {
       fileExisted = false
       // Until a load succeeds, never write the project file: it may exist unread.
       readFailed = true
+      memoryLoaded = false
       try {
         const loaded = await loadAll(await memoryDeps($, options))
         fileExisted = loaded.fileExisted
@@ -193,6 +201,7 @@ export const register: Register = (on, options) => {
         await update($, unreadableAtom, () => loaded.unreadable)
         await update($, personalAtom, () => loaded.personal)
         await update($, projectAtom, () => loaded.project)
+        memoryLoaded = true
         // The persist may wait on Azure for seconds; session start does not.
         void saveMemory($, options, loaded.personal, loaded.project).catch(() => undefined)
       } catch {
@@ -310,21 +319,25 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'tiabwft' }, async ($, e) => {
-    const arg = e.args.trim().toLowerCase()
-    const raw = e.args.trim()
-    if (arg === 'memory' || arg.startsWith('memory ') || arg.startsWith('forget ') || arg.startsWith('remember ')) {
+    const raw = e.args.trim().split(/\s+/).join(' ')
+    const arg = raw.toLowerCase()
+    const isMemoryCommand = arg === 'memory' || arg.startsWith('memory ') || arg === 'forget' || arg.startsWith('forget ') || arg === 'remember' || arg.startsWith('remember ')
+    if (isMemoryCommand) {
       if (!memoryOn) {
         return { text: 'Memory is off in the tiabwft settings (memory: off).' }
       }
-      const failed = { text: "Couldn't change memory just now. Nothing was lost." }
+      if (!memoryLoaded) {
+        return { text: "tiabwft memory isn't loaded in this session (tiabwft is off, memory is off, or loading failed)." }
+      }
+      const failed = { text: "Couldn't save that change just now. Nothing was changed." }
       if (arg === 'memory') {
         const known = combine(await read($, personalAtom), await read($, projectAtom))
-
-        return {
-          text: known.length === 0
-            ? 'tiabwft remembers nothing yet.'
-            : known.map(f => `${f.scope === 'personal' ? '\u{1F464}' : '\u{1F5C2}\uFE0F'} [${f.kind}] ${f.subject}: ${f.text}`).join('\n'),
+        const lines = known.slice(0, MAX_LISTED).map(f => `${f.scope === 'personal' ? '\u{1F464}' : '\u{1F5C2}\uFE0F'} [${f.kind}] ${f.subject}: ${f.text}`)
+        if (known.length > MAX_LISTED) {
+          lines.push(`+${known.length - MAX_LISTED} more`)
         }
+
+        return { text: known.length === 0 ? 'tiabwft remembers nothing yet.' : lines.join('\n') }
       }
       if (arg === 'memory off' || arg === 'memory on') {
         await update($, pausedAtom, () => arg === 'memory off')
@@ -343,6 +356,15 @@ export const register: Register = (on, options) => {
 
         return done === undefined ? failed : { text: "This project's memory is deleted. Facts found in your files come back at the next start." }
       }
+      if (arg.startsWith('memory ')) {
+        return { text: 'Usage: /tiabwft memory [off|on|reset]' }
+      }
+      if (arg === 'forget') {
+        return { text: 'Usage: /tiabwft forget <text>' }
+      }
+      if (arg === 'remember') {
+        return { text: 'Usage: /tiabwft remember <text>' }
+      }
       if (arg.startsWith('forget ')) {
         const needle = raw.slice('forget '.length)
         let removed: Fact[] = []
@@ -358,33 +380,31 @@ export const register: Register = (on, options) => {
 
         return { text: removed.length === 0 ? 'Nothing matched.' : `Forgotten: ${removed.map(f => f.subject).join(', ')}` }
       }
-      if (arg.startsWith('remember ')) {
-        let added: Fact[] = []
-        try {
-          const r = await rememberText(await memoryDeps($, options), raw.slice('remember '.length), await read($, personalAtom), await read($, projectAtom))
-          added = r.added
-        } catch {
-          return failed
-        }
-        if (added.length === 0) {
-          return { text: "Couldn't save that (too long, or it looked like a secret)." }
-        }
-        const done = await mutateMemory($, options, (personal, project) => {
-          let p = personal
-          let j = project
-          for (const f of added) {
-            if (f.scope === 'personal') {
-              p = mergeFact(p, f)
-            } else {
-              j = mergeFact(j, f)
-            }
-          }
-
-          return { personal: p, project: j }
-        })
-
-        return done === undefined ? failed : { text: `Remembered: ${added.map(f => `[${f.kind}] ${f.subject}`).join(', ')}` }
+      let added: Fact[] = []
+      try {
+        const r = await rememberText(await memoryDeps($, options), raw.slice('remember '.length), await read($, personalAtom), await read($, projectAtom))
+        added = r.added
+      } catch {
+        return failed
       }
+      if (added.length === 0) {
+        return { text: "Couldn't save that (too long, or it looked like a secret)." }
+      }
+      const done = await mutateMemory($, options, (personal, project) => {
+        let p = personal
+        let j = project
+        for (const f of added) {
+          if (f.scope === 'personal') {
+            p = mergeFact(p, f)
+          } else {
+            j = mergeFact(j, f)
+          }
+        }
+
+        return { personal: p, project: j }
+      })
+
+      return done === undefined ? failed : { text: `Remembered: ${added.map(f => `[${f.kind}] ${f.subject}`).join(', ')}` }
     }
     if (arg === 'panel') {
       const { isPlaced } = await $.ui.open({ id: PANE, title: PANE_TITLE })
