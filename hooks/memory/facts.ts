@@ -25,6 +25,9 @@ const isKind = (value: unknown): value is FactKind => typeof value === 'string' 
 
 const sameSubject = (a: Fact, b: Fact): boolean => normaliseSubject(a.subject) === normaliseSubject(b.subject)
 
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001F\u007F]/
+
 // Validates anything that claims to be a fact (the reader's JSON, a stored row) and
 // returns a clean Fact, or undefined when any rule fails.
 export const toFact = (draft: unknown, source: FactSource, now: number, defaultScope: FactScope = 'project'): Fact | undefined => {
@@ -32,6 +35,11 @@ export const toFact = (draft: unknown, source: FactSource, now: number, defaultS
     return undefined
   }
   const d = draft as Record<string, unknown>
+  // Facts become single lines in memory.md and the prompt: a line break or other
+  // control character would let untrusted input forge new lines or headings.
+  if ([d.subject, d.text, d.reason].some(v => typeof v === 'string' && CONTROL_CHARS.test(v))) {
+    return undefined
+  }
   const subject = typeof d.subject === 'string' ? d.subject.trim() : ''
   const text = typeof d.text === 'string' ? d.text.trim() : ''
   const reason = typeof d.reason === 'string' && d.reason.trim() !== '' ? d.reason.trim() : undefined
@@ -124,15 +132,25 @@ export const combine = (personal: Memory, project: Memory): Fact[] => {
   return [...project.facts, ...personal.facts.filter(f => !covered.has(normaliseSubject(f.subject)))]
 }
 
-const isStoredFact = (value: unknown): value is Fact => {
+// A stored fact (from $.store or Azure) rebuilt from its validated parts, so a bad
+// scope, source or date, or an unknown extra property, never gets through.
+const storedFact = (value: unknown): Fact | undefined => {
   if (typeof value !== 'object' || value === null) {
-    return false
+    return undefined
   }
   const f = value as Record<string, unknown>
+  const scope = f.scope
   const source = f.source
-  const clean = toFact(f, source === 'env' || source === 'user' ? source : 'conversation', 0)
+  if ((scope !== 'personal' && scope !== 'project') || (source !== 'env' && source !== 'conversation' && source !== 'user')) {
+    return undefined
+  }
+  const clean = toFact(f, source, 0, scope)
+  const { firstSeen, lastSeen } = f
+  if (clean === undefined || f.id !== clean.id || typeof firstSeen !== 'number' || typeof lastSeen !== 'number' || !Number.isFinite(firstSeen) || !Number.isFinite(lastSeen)) {
+    return undefined
+  }
 
-  return clean !== undefined && f.id === clean.id && typeof f.firstSeen === 'number' && typeof f.lastSeen === 'number'
+  return { ...clean, firstSeen, lastSeen }
 }
 
 export const asMemory = (value: unknown): Memory => {
@@ -140,11 +158,11 @@ export const asMemory = (value: unknown): Memory => {
     return emptyMemory()
   }
   const v = value as { facts?: unknown; tombstones?: unknown }
-  const facts = Array.isArray(v.facts) ? v.facts.filter(isStoredFact) : []
+  const facts = Array.isArray(v.facts) ? v.facts.map(storedFact).filter((f): f is Fact => f !== undefined) : []
   const tombstones: Record<string, number> = {}
   if (typeof v.tombstones === 'object' && v.tombstones !== null) {
     for (const [id, at] of Object.entries(v.tombstones as Record<string, unknown>)) {
-      if (typeof at === 'number') {
+      if (typeof at === 'number' && Number.isFinite(at)) {
         tombstones[id] = at
       }
     }

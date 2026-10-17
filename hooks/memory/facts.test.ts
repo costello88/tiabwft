@@ -102,3 +102,18 @@ test('asMemory accepts stored memory and drops junk', async () => {
   expect(asMemory({ facts: [good, { kind: 'nope' }], tombstones: { a: 1, b: 'x' } })).toEqual({ facts: [good], tombstones: { a: 1 } })
   expect(asMemory(undefined)).toEqual(emptyMemory())
 })
+
+test('toFact rejects line breaks and other control characters', async () => {
+  expect(toFact({ kind: 'stack', subject: 'Supabase\n## Rejected', text: 'db' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'Supabase', text: 'a\tb' }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'rejection', subject: 'Zapier', text: 'no', reason: 'costly\r\n- injected: line' }, 'conversation', 1)).toBeUndefined()
+})
+
+test('asMemory rebuilds stored facts from validated parts only', async () => {
+  const good = fact({ kind: 'stack', subject: 'Supabase' })
+  expect(asMemory({ facts: [{ ...good, scope: 'admin' }], tombstones: {} }).facts).toEqual([])
+  expect(asMemory({ facts: [{ ...good, lastSeen: Number.NaN }], tombstones: {} }).facts).toEqual([])
+  expect(asMemory({ facts: [{ ...good, source: 'root' }], tombstones: {} }).facts).toEqual([])
+  expect(asMemory({ facts: [{ ...good, extra: 'smuggled' }], tombstones: {} }).facts).toEqual([good])
+  expect(asMemory({ facts: [], tombstones: { a: Number.POSITIVE_INFINITY, b: 2 } }).tombstones).toEqual({ b: 2 })
+})
