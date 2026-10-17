@@ -56,3 +56,51 @@ test('a line holding a secret is refused', async () => {
   expect(parsed.memory.facts.length).toBe(0)
   expect(parsed.unreadable).toBe(1)
 })
+
+test('a password line is refused even though neither part alone matches', async () => {
+  const parsed = parseMemoryFile('## Stack\n- password: hunter2 (you, 2026-10-17)\n', DAY)
+  expect(parsed.memory.facts.length).toBe(0)
+  expect(parsed.unreadable).toBe(1)
+})
+
+test('control characters in a body or a subject are refused', async () => {
+  const body = parseMemoryFile('## Stack\n- Supabase: db\u001b (said, 2026-10-17)\n', DAY)
+  expect(body.memory.facts.length).toBe(0)
+  expect(body.unreadable).toBe(1)
+  const subject = parseMemoryFile('## Stack\n- Sup abase: db (said, 2026-10-17)\n', DAY)
+  expect(subject.memory.facts.length).toBe(0)
+  expect(subject.unreadable).toBe(1)
+})
+
+test('an impossible date is refused', async () => {
+  const parsed = parseMemoryFile('## Stack\n- Supabase: db (said, 2026-99-99)\n', DAY)
+  expect(parsed.memory.facts.length).toBe(0)
+  expect(parsed.unreadable).toBe(1)
+})
+
+test('a body over 160 characters with no "; " is refused', async () => {
+  const parsed = parseMemoryFile(`## Stack\n- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)\n`, DAY)
+  expect(parsed.memory.facts.length).toBe(0)
+  expect(parsed.unreadable).toBe(1)
+})
+
+test('a repeated subject under one heading keeps the first line', async () => {
+  const parsed = parseMemoryFile([
+    '## Stack',
+    '- Supabase: first (said, 2026-10-17)',
+    '- supabase: second (said, 2026-10-17)',
+  ].join('\n'), DAY)
+  expect(parsed.memory.facts.length).toBe(1)
+  expect(parsed.memory.facts[0]!.text).toBe('first')
+  expect(parsed.unreadable).toBe(1)
+})
+
+test('a reason survives the round trip as its own field', async () => {
+  const rejected = fact({ kind: 'rejection', subject: 'Zapier', text: 'too expensive', reason: 'per task' })
+  const text = renderMemoryFile({ facts: [rejected], tombstones: {} })
+  expect(text).toContain('- Zapier: too expensive; per task (said, 2026-10-17)')
+  const parsed = parseMemoryFile(text, 0)
+  expect(parsed.unreadable).toBe(0)
+  expect(parsed.memory.facts[0]!.text).toBe('too expensive')
+  expect(parsed.memory.facts[0]!.reason).toBe('per task')
+})
