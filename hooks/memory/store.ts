@@ -1,11 +1,13 @@
 import type { Fact, Memory } from '../../types'
-import { asMemory, emptyMemory, normaliseSubject } from './facts'
+import { asLastSync, asMemory, emptyMemory, normaliseSubject } from './facts'
+import type { LastSync } from './facts'
 import { parseMemoryFile, renderMemoryFile } from './memfile'
 import type { ParsedFile } from './memfile'
 
 export const PROJECT_FILE = '.claude/tiabwft/memory.md'
 export const PERSONAL_KEY = 'memory.personal'
 export const SUGGESTED_KEY = 'memory.suggested'
+export const LAST_SYNC_PREFIX = 'memory.lastSync.'
 const IGNORE_LINE = '.claude/tiabwft/'
 
 export type Files = {
@@ -74,6 +76,12 @@ export const saveProject = async (
   }
   return text
 }
+
+// Per partition: this machine's last successful Azure save (see LastSync in facts.ts).
+export const loadLastSync = async (kv: KV, partition: string): Promise<LastSync | undefined> =>
+  asLastSync(await kv.get(`${LAST_SYNC_PREFIX}${partition}`).catch(() => undefined))
+
+export const saveLastSync = (kv: KV, partition: string, sync: LastSync): Promise<void> => kv.set(`${LAST_SYNC_PREFIX}${partition}`, sync)
 
 export const loadSuggested = async (kv: KV): Promise<string[]> => {
   const value = await kv.get(SUGGESTED_KEY).catch(() => undefined)

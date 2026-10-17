@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Fact, Memory } from '../../types'
 import {
-  asMemory, combine, containsSecret, deleteFact, emptyMemory, factId, mergeFact,
+  asLastSync, asMemory, combine, containsSecret, deleteFact, emptyMemory, factId, mergeFact,
   mergeMemories, mergeWithFile, replaceEnvFacts, toFact,
 } from './facts'
 
@@ -121,17 +121,50 @@ test('asMemory rebuilds stored facts from validated parts only', async () => {
   expect(asMemory({ facts: [], tombstones: { a: Number.POSITIVE_INFINITY, b: 2 } }).tombstones).toEqual({ b: 2 })
 })
 
-test('mergeWithFile: the file wins, hand deletions get a tombstone at mtime, newer remote facts and env facts', async () => {
+test('mergeWithFile: after a sync, the changed file wins and only facts this machine had can be deleted by hand', async () => {
   const at = (kind: Fact['kind'], subject: string, text: string, lastSeen: number, source: Fact['source'] = 'conversation'): Fact =>
     ({ id: factId(kind, subject), kind, scope: 'project', subject, text, source, firstSeen: lastSeen, lastSeen })
   const file: Memory = { facts: [at('rejection', 'Zapier', 'mine', 0)], tombstones: {} }
   const remote: Memory = {
-    facts: [at('rejection', 'Zapier', 'theirs', 50), at('stack', 'Old', 'deleted by hand', 60), at('stack', 'New', 'learned later', 200), at('stack', 'Stripe', 'env', 50, 'env')],
+    facts: [
+      at('rejection', 'Zapier', 'theirs', 50),
+      at('stack', 'Old', 'deleted by hand', 60),
+      at('stack', 'Elsewhere', 'learned on another machine before the sync', 70),
+      at('stack', 'New', 'learned after the sync', 90),
+      at('stack', 'Stripe', 'env', 50, 'env'),
+    ],
     tombstones: {},
   }
-  const merged = mergeWithFile(file, remote, 100)
-  expect(merged.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['New:learned later', 'Zapier:mine'])
+  const sync = { at: 80, ids: [factId('rejection', 'Zapier'), factId('stack', 'Old'), factId('stack', 'New')] }
+  const merged = mergeWithFile(file, remote, 100, sync)
+  expect(merged.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['Elsewhere:learned on another machine before the sync', 'New:learned after the sync', 'Zapier:mine'])
   expect(merged.tombstones).toEqual({ [factId('stack', 'Old')]: 100 })
+})
+
+test('mergeWithFile: a file untouched since the sync deletes nothing and keeps its line dates', async () => {
+  const at = (kind: Fact['kind'], subject: string, text: string, lastSeen: number): Fact =>
+    ({ id: factId(kind, subject), kind, scope: 'project', subject, text, source: 'conversation', firstSeen: lastSeen, lastSeen })
+  const file: Memory = { facts: [at('rejection', 'Zapier', 'mine', 10)], tombstones: {} }
+  const remote: Memory = { facts: [at('rejection', 'Zapier', 'edited elsewhere', 50), at('stack', 'Old', 'kept', 20)], tombstones: {} }
+  const merged = mergeWithFile(file, remote, 30, { at: 40, ids: [factId('rejection', 'Zapier'), factId('stack', 'Old')] })
+  expect(merged.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['Old:kept', 'Zapier:edited elsewhere'])
+  expect(merged.tombstones).toEqual({})
+})
+
+test('mergeWithFile: without a last sync it is a plain newest-wins merge', async () => {
+  const at = (kind: Fact['kind'], subject: string, text: string, lastSeen: number): Fact =>
+    ({ id: factId(kind, subject), kind, scope: 'project', subject, text, source: 'conversation', firstSeen: lastSeen, lastSeen })
+  const file: Memory = { facts: [at('rejection', 'Zapier', 'mine', 10)], tombstones: {} }
+  const remote: Memory = { facts: [at('rejection', 'Zapier', 'theirs', 50), at('stack', 'Old', 'not in the file', 20)], tombstones: {} }
+  expect(mergeWithFile(file, remote, 1000)).toEqual(mergeMemories(file, remote))
+  expect(mergeWithFile(file, remote, 1000).tombstones).toEqual({})
+})
+
+test('asLastSync accepts only a finite time and string ids', async () => {
+  expect(asLastSync({ at: 5, ids: ['a', 3, 'b'] })).toEqual({ at: 5, ids: ['a', 'b'] })
+  expect(asLastSync({ at: Number.NaN, ids: [] })).toBeUndefined()
+  expect(asLastSync({ at: 5 })).toBeUndefined()
+  expect(asLastSync(5)).toBeUndefined()
 })
 
 test('the secret filter catches Stripe, Google, private keys, GitLab, npm and Bearer tokens', async () => {

@@ -3,8 +3,8 @@ import { expect, test } from 'claude-code/testing'
 import type { Memory } from '../../types'
 import { factId } from './facts'
 import {
-  addSuggested, azureLoad, azureSave, loadPersonal, loadProject, loadSuggested, projectPartition,
-  PROJECT_FILE, saveProject, savePersonal,
+  addSuggested, azureLoad, azureSave, loadLastSync, loadPersonal, loadProject, loadSuggested, projectPartition,
+  PROJECT_FILE, saveLastSync, saveProject, savePersonal,
 } from './store'
 
 const memFiles = (initial: Record<string, string> = {}) => {
@@ -64,6 +64,15 @@ test('projectPartition prefers the GitHub repo, else the folder name plus a hash
   expect(await projectPartition('/home/me/shop', '[remote "origin"]\n\turl = git@github.com:me/shop\n')).toBe('project:me/shop')
   expect(await projectPartition('/home/me/shop')).toMatch(/^project:shop-[0-9a-f]{8}$/)
   expect(await projectPartition('/home/me/shop')).toBe(await projectPartition('/home/me/shop'))
+})
+
+test('the last sync round-trips per partition and rejects bad values', async () => {
+  const { kv, data } = memKV()
+  await saveLastSync(kv, 'project:a/b', { at: 5, ids: ['stack:x'] })
+  expect(await loadLastSync(kv, 'project:a/b')).toEqual({ at: 5, ids: ['stack:x'] })
+  expect(await loadLastSync(kv, 'project:c/d')).toBeUndefined()
+  data.set('memory.lastSync.project:c/d', { at: 'soon', ids: [] })
+  expect(await loadLastSync(kv, 'project:c/d')).toBeUndefined()
 })
 
 test('projectPartition: same-named folders differ, and spaces or other characters never reach the partition', async () => {

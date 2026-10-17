@@ -1,6 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
+import { projectPartition } from './store'
+
 const FACTS = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', surfaces: ['terminal' as const], tools: [], outputStyle: null, traits: [] }
 const files = new Map<string, string>()
 // The engine resolves paths for the platform (C:/repo/x on Windows); the stand-ins key them as /repo/x.
@@ -233,7 +235,22 @@ const azureEngine = (on: On, project: object, mtimeMs: number) => {
   })
 }
 
-test('with Azure sync, a fact deleted by hand from memory.md stays deleted', { options: SYNC }, async ($, on) => {
+test('with Azure sync, a fact deleted by hand from memory.md after the last sync stays deleted', { options: SYNC }, async ($, on) => {
+  files.clear()
+  files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
+  const T = Date.parse('2026-10-17T12:00:00Z')
+  const make = { id: 'rejection:make', kind: 'rejection', scope: 'project', subject: 'Make', text: 'too fiddly', source: 'conversation', firstSeen: T - 5000, lastSeen: T - 5000 }
+  const lastSync = `memory.lastSync.${await projectPartition('/repo')}`
+  seed = { [lastSync]: { at: T - 1000, ids: ['rejection:zapier', 'rejection:make'] } }
+  azureEngine(on, { facts: [make], tombstones: {} }, T)
+  await $.session.start({ source: 'startup', cwd: '/repo' } as never)
+  await tick()
+  expect((await runCommand($, 'memory')).text).not.toContain('Make')
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
+  expect(fetched.some(f => f.startsWith('PUT') && f.includes('partition=project') && f.includes('"rejection:make":'))).toBe(true)
+})
+
+test('with Azure sync, the first start on a machine takes a remote fact the file lacks', { options: SYNC }, async ($, on) => {
   files.clear()
   files.set('/repo/.claude/tiabwft/memory.md', '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n')
   const T = Date.parse('2026-10-17T12:00:00Z')
@@ -241,9 +258,8 @@ test('with Azure sync, a fact deleted by hand from memory.md stays deleted', { o
   azureEngine(on, { facts: [make], tombstones: {} }, T)
   await $.session.start({ source: 'startup', cwd: '/repo' } as never)
   await tick()
-  expect((await runCommand($, 'memory')).text).not.toContain('Make')
-  expect(files.get('/repo/.claude/tiabwft/memory.md')).not.toContain('Make')
-  expect(fetched.some(f => f.startsWith('PUT') && f.includes('partition=project') && f.includes('"rejection:make":'))).toBe(true)
+  expect((await runCommand($, 'memory')).text).toContain('Make')
+  expect(files.get('/repo/.claude/tiabwft/memory.md')).toContain('- Make: too fiddly')
 })
 
 test('env facts are never written to memory.md, so an unchanged file stays untouched', async ($, on) => {

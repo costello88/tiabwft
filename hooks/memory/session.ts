@@ -4,7 +4,8 @@ import { containsSecret, deleteFact, mergeFact, mergeMemories, mergeWithFile, no
 import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
-  addSuggested, azureLoad, azureSave, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition, saveProject, savePersonal,
+  addSuggested, azureLoad, azureSave, loadLastSync, loadPersonal, loadProject, loadSuggested, projectFilePath, projectPartition,
+  saveLastSync, saveProject, savePersonal,
 } from './store'
 import type { AzureConfig, Fetch, Files, KV } from './store'
 
@@ -38,17 +39,20 @@ export const loadAll = async (deps: MemoryDeps): Promise<Loaded> => {
   if (deps.azure !== undefined) {
     const { config, fetch, sleep } = deps.azure
     const fileRead = file.existed && file.readFailed !== true
-    const [remotePersonal, remoteProject, mtime] = await Promise.all([
+    const partition = partitionFor(deps)
+    const [remotePersonal, remoteProject, mtime, lastSync] = await Promise.all([
       azureLoad(fetch, config, 'personal', AZURE_TIMEOUT_MS, sleep),
-      partitionFor(deps).then(partition => azureLoad(fetch, config, partition, AZURE_TIMEOUT_MS, sleep)),
+      partition.then(p => azureLoad(fetch, config, p, AZURE_TIMEOUT_MS, sleep)),
       fileRead && deps.files.mtime !== undefined ? deps.files.mtime(projectFilePath(deps.root)).catch(() => undefined) : Promise.resolve(undefined),
+      partition.then(p => loadLastSync(deps.kv, p)),
     ])
     if (remotePersonal !== undefined) {
       personal = mergeMemories(personal, remotePersonal)
     }
     if (remoteProject !== undefined) {
-      // With the file's time the file is the authority; without it, the newest copy wins.
-      project = mtime !== undefined && Number.isFinite(mtime) ? mergeWithFile(project, remoteProject, mtime) : mergeMemories(project, remoteProject)
+      // With the file's time the file is the authority for what changed in it since this
+      // machine's last sync; without it, the newest copy wins.
+      project = mtime !== undefined && Number.isFinite(mtime) ? mergeWithFile(project, remoteProject, mtime, lastSync) : mergeMemories(project, remoteProject)
     }
   }
   const reader = { exists: (p: string) => deps.files.exists(`${deps.root}/${p}`), read: (p: string) => deps.files.read(`${deps.root}/${p}`) }
@@ -88,7 +92,15 @@ export const persistAll = async (deps: MemoryDeps, options: MemoryOptions, perso
       Promise.race([save, sleep(AZURE_SAVE_TIMEOUT_MS).then(() => false)]).catch(() => false)
     await Promise.all([
       bounded(azureSave(fetch, config, 'personal', personal)),
-      bounded(partitionFor(deps).then(partition => azureSave(fetch, config, partition, project))),
+      bounded(partitionFor(deps).then(async partition => {
+        const saved = await azureSave(fetch, config, partition, project)
+        if (saved) {
+          // What this machine held when Azure last had all of it: the next load's cutoff.
+          const ids = project.facts.filter(f => f.source !== 'env').map(f => f.id)
+          await saveLastSync(deps.kv, partition, { at: deps.now(), ids }).catch(() => undefined)
+        }
+        return saved
+      })),
     ])
   }
   return next

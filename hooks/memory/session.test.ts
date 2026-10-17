@@ -2,10 +2,10 @@ import { expect, test } from 'claude-code/testing'
 import type { ModelCompleteResult } from 'claude-code'
 
 import type { Fact, Memory } from '../../types'
-import { emptyMemory, factId } from './facts'
+import { emptyMemory, factId, mergeMemories } from './facts'
 import { applyLearned, forgetById, forgetMatching, learn, loadAll, persistAll, rememberText } from './session'
-import type { MemoryDeps } from './session'
-import { addSuggested, PROJECT_FILE } from './store'
+import type { Loaded, MemoryDeps } from './session'
+import { addSuggested, PROJECT_FILE, projectPartition } from './store'
 
 const replyWith = (json: object) => async (): Promise<ModelCompleteResult> => ({ isAnswered: true, text: JSON.stringify(json), usage: { input_tokens: 1, output_tokens: 1 } } as ModelCompleteResult)
 
@@ -195,10 +195,16 @@ const azureWith = (project: Memory, puts: string[] = []) => ({
 })
 const withMtime = (deps: MemoryDeps, mtime: number): MemoryDeps => ({ ...deps, files: { ...deps.files, mtime: async () => mtime } })
 
-test('with Azure, a fact deleted by hand from the file stays deleted', async () => {
+// This machine synced at T - 1000, holding the given facts; the file changed at T.
+const syncedBefore = async (store: Map<string, unknown>, ids: string[]) => {
+  store.set(`memory.lastSync.${await projectPartition('/repo')}`, { at: T - 1000, ids })
+}
+
+test('with Azure, a fact deleted by hand after the last sync stays deleted', async () => {
   const remote: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', T - 5000), remoteFact('rejection', 'Make', 'too fiddly', T - 5000)], tombstones: {} }
   const puts: string[] = []
-  const { deps } = makeDeps({ azure: azureWith(remote, puts) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  const { deps, store } = makeDeps({ azure: azureWith(remote, puts) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  await syncedBefore(store, [factId('rejection', 'Zapier'), factId('rejection', 'Make')])
   const loaded = await loadAll(withMtime(deps, T))
   expect(loaded.project.facts.map(f => f.subject)).toEqual(['Zapier'])
   expect(loaded.project.tombstones[factId('rejection', 'Make')]).toBe(T)
@@ -210,15 +216,17 @@ test('with Azure, a fact deleted by hand from the file stays deleted', async () 
 
 test('with Azure, a hand-edited text wins over an older remote copy', async () => {
   const remote: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', T - 5000)], tombstones: {} }
-  const { deps } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: far too pricey (said, 2026-10-17)\n' })
+  const { deps, store } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: far too pricey (said, 2026-10-17)\n' })
+  await syncedBefore(store, [factId('rejection', 'Zapier')])
   const loaded = await loadAll(withMtime(deps, T))
   expect(loaded.project.facts.map(f => f.text)).toEqual(['far too pricey'])
   expect(loaded.project.facts[0]!.lastSeen).toBe(T)
 })
 
-test('with Azure, a remote fact newer than the file is taken, and so is a newer remote edit', async () => {
+test('with Azure, a remote fact newer than the last sync is taken, and so is a newer remote edit', async () => {
   const remote: Memory = { facts: [remoteFact('stack', 'Supabase', 'auth', T + 5000), remoteFact('rejection', 'Zapier', 'never again', T + 5000)], tombstones: {} }
-  const { deps } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  const { deps, store } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  await syncedBefore(store, [factId('rejection', 'Zapier'), factId('stack', 'Supabase')])
   const loaded = await loadAll(withMtime(deps, T))
   expect(loaded.project.facts.map(f => `${f.subject}:${f.text}`).sort()).toEqual(['Supabase:auth', 'Zapier:never again'])
   expect(loaded.project.tombstones).toEqual({})
@@ -229,4 +237,149 @@ test('without a project file, Azure facts are taken as before', async () => {
   const { deps } = makeDeps({ azure: azureWith(remote) })
   const loaded = await loadAll(withMtime(deps, T))
   expect(loaded.project.facts.map(f => f.subject)).toEqual(['Make'])
+})
+
+test('the first sync on a new machine is a plain merge: nothing counts as deleted by hand', async () => {
+  const remote: Memory = { facts: [remoteFact('rejection', 'Make', 'too fiddly', T - 5000)], tombstones: {} }
+  const { deps } = makeDeps({ azure: azureWith(remote) }, { [`/repo/${PROJECT_FILE}`]: '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n' })
+  const loaded = await loadAll(withMtime(deps, T))
+  expect(loaded.project.facts.map(f => f.subject).sort()).toEqual(['Make', 'Zapier'])
+  expect(loaded.project.tombstones).toEqual({})
+})
+
+test('a successful Azure save records the last sync; a failed one does not', async () => {
+  const project: Memory = { facts: [remoteFact('rejection', 'Zapier', 'too expensive', 5)], tombstones: {} }
+  const key = `memory.lastSync.${await projectPartition('/repo')}`
+  const ok = makeDeps({ azure: azureWith(emptyMemory()), now: () => 777 })
+  await persistAll(ok.deps, { projectFile: 'commit' }, emptyMemory(), project, { existed: false })
+  expect(ok.store.get(key)).toEqual({ at: 777, ids: [factId('rejection', 'Zapier')] })
+  const failing = makeDeps({ azure: { ...azureWith(emptyMemory()), fetch: async () => ({ ok: false, status: 500, text: '' }) } })
+  await persistAll(failing.deps, { projectFile: 'commit' }, emptyMemory(), project, { existed: false })
+  expect(failing.store.has(key)).toBe(false)
+})
+
+// Two machines on one shared Azure partition. The fake function merges like the real
+// one: the newest fact wins, and a tombstone removes the facts not seen after it.
+const sharedAzure = () => {
+  let held: Memory = emptyMemory()
+  const azure = {
+    config: { url: 'https://x/api/memory', key: 'k' },
+    fetch: async (url: string, init?: { method?: string; body?: string }) => {
+      const isPut = init?.method === 'PUT'
+      if (!url.includes('partition=project')) {
+        return { ok: true, status: isPut ? 204 : 200, text: isPut ? '' : JSON.stringify(emptyMemory()) }
+      }
+      if (isPut) {
+        held = mergeMemories(held, JSON.parse(init?.body ?? '{}') as Memory)
+        return { ok: true, status: 204, text: '' }
+      }
+      return { ok: true, status: 200, text: JSON.stringify(held) }
+    },
+    sleep: () => new Promise<void>(() => {}),
+  }
+  return { azure, held: () => held }
+}
+
+// One machine: its own files with mtimes, its own store, and a clock the test moves.
+const machine = (azure: MemoryDeps['azure'], fileText?: string) => {
+  let clock = T
+  const path = `/repo/${PROJECT_FILE}`
+  const mtimes = new Map<string, number>()
+  const { deps, data } = makeDeps({ azure, now: () => clock }, fileText === undefined ? {} : { [path]: fileText })
+  if (fileText !== undefined) {
+    mtimes.set(path, clock)
+  }
+  const m: MemoryDeps = {
+    ...deps,
+    files: {
+      ...deps.files,
+      write: async (p: string, t: string) => { data.set(p, t); mtimes.set(p, clock) },
+      mtime: async (p: string) => mtimes.get(p),
+    },
+  }
+  let state: Loaded | undefined
+  return {
+    data,
+    at: (time: number) => { clock = time },
+    // A change on disk outside tiabwft (a hand edit, a git pull): new text or only a new mtime.
+    touch: (text?: string) => {
+      if (text !== undefined) {
+        data.set(path, text)
+      }
+      mtimes.set(path, clock)
+    },
+    // A session start: the load, then the session-start save.
+    start: async (): Promise<Memory> => {
+      const loaded = await loadAll(m)
+      const after = await persistAll(m, { projectFile: 'commit' }, loaded.personal, loaded.project, loaded.file)
+      state = { ...loaded, file: after }
+      return loaded.project
+    },
+    // A fact learned during the session, then the background save.
+    learn: async (subject: string, text: string): Promise<void> => {
+      const current = state!
+      const project = mergeMemories(current.project, { facts: [remoteFact('stack', subject, text, clock)], tombstones: {} })
+      const after = await persistAll(m, { projectFile: 'commit' }, current.personal, project, current.file)
+      state = { ...current, project, file: after }
+    },
+  }
+}
+const subjects = (m: Memory): string[] => m.facts.map(f => f.subject).sort()
+const HOUR = 60 * 60 * 1000
+const BASE = '## Rejected\n- Zapier: too expensive (said, 2026-10-17)\n'
+
+test('two machines: a fact learned on A survives B, whose file was touched later but never edited, and A keeps it', async () => {
+  const { azure, held } = sharedAzure()
+  const a = machine(azure, BASE)
+  const b = machine(azure, BASE)
+  b.at(T)
+  await b.start()
+  a.at(T + HOUR)
+  await a.start()
+  a.at(T + 2 * HOUR)
+  await a.learn('Supabase', 'auth and database')
+  // B was in a session all along: its background save comes after A's sync, without A's fact.
+  b.at(T + 3 * HOUR)
+  await b.learn('Vercel', 'hosting')
+  // A git pull on B rewrites memory.md with the same text: only the mtime moves.
+  b.at(T + 4 * HOUR)
+  b.touch(b.data.get(`/repo/${PROJECT_FILE}`))
+  b.at(T + 5 * HOUR)
+  expect(subjects(await b.start())).toEqual(['Supabase', 'Vercel', 'Zapier'])
+  expect(b.data.get(`/repo/${PROJECT_FILE}`)).toContain('- Supabase: auth and database')
+  expect(held().tombstones).toEqual({})
+  a.at(T + 6 * HOUR)
+  expect(subjects(await a.start())).toEqual(['Supabase', 'Vercel', 'Zapier'])
+  expect(a.data.get(`/repo/${PROJECT_FILE}`)).toContain('- Supabase: auth and database')
+})
+
+test('one machine: a line deleted by hand after a sync stays deleted, and the deletion reaches Azure', async () => {
+  const { azure, held } = sharedAzure()
+  const b = machine(azure, `${BASE}- Make: too fiddly (said, 2026-10-17)\n`)
+  b.at(T)
+  await b.start()
+  expect(subjects(held())).toEqual(['Make', 'Zapier'])
+  b.at(T + HOUR)
+  b.touch(BASE)
+  b.at(T + 2 * HOUR)
+  expect(subjects(await b.start())).toEqual(['Zapier'])
+  expect(subjects(held())).toEqual(['Zapier'])
+  expect(held().tombstones[factId('rejection', 'Make')]).toBe(T + HOUR)
+  b.at(T + 3 * HOUR)
+  expect(subjects(await b.start())).toEqual(['Zapier'])
+  expect(b.data.get(`/repo/${PROJECT_FILE}`)).not.toContain('Make')
+})
+
+test('a new machine syncing for the first time takes everything in Azure', async () => {
+  const { azure, held } = sharedAzure()
+  const a = machine(azure, BASE)
+  a.at(T)
+  await a.start()
+  await a.learn('Supabase', 'auth and database')
+  // A fresh clone of an older commit: its mtime is newer than everything in Azure.
+  const fresh = machine(azure, BASE)
+  fresh.at(T + HOUR)
+  fresh.touch()
+  expect(subjects(await fresh.start())).toEqual(['Supabase', 'Zapier'])
+  expect(held().tombstones).toEqual({})
 })

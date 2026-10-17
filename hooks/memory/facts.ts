@@ -135,24 +135,50 @@ export const mergeMemories = (a: Memory, b: Memory): Memory => {
   return { facts, tombstones }
 }
 
-// Sync merge when the project file exists: the file is the authority. Its facts count
-// as seen when the file was last changed (mtime), so a hand edit beats an older remote
-// copy. A remote fact missing from the file is taken only when it is newer than the
-// file; otherwise it was deleted by hand and gets a tombstone at mtime, so it doesn't
-// come back. Remote env facts are left out: the env scan finds them again.
-export const mergeWithFile = (file: Memory, remote: Memory, mtime: number): Memory => {
-  const local: Memory = { ...file, facts: file.facts.map(f => ({ ...f, lastSeen: Math.max(f.lastSeen, mtime) })) }
+// This machine's last successful Azure save of a project partition: when (at), and the
+// ids of the facts its memory held then. A fact that was never in that list was never
+// on this machine, so its absence from the file can't be a hand deletion.
+export type LastSync = { at: number; ids: readonly string[] }
+
+export const asLastSync = (value: unknown): LastSync | undefined => {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+  const v = value as { at?: unknown; ids?: unknown }
+  if (typeof v.at !== 'number' || !Number.isFinite(v.at) || !Array.isArray(v.ids)) {
+    return undefined
+  }
+  return { at: v.at, ids: v.ids.filter((id): id is string => typeof id === 'string') }
+}
+
+// Sync merge when the project file exists: the file is the authority, but only for what
+// changed in it since this machine's last sync. Without a last sync (a new machine, a
+// fresh clone) nothing can have been deleted by hand: a plain newest-wins merge. With
+// one, and a file changed since (mtime > at):
+// - file facts count as seen at mtime, so a hand edit beats an older remote copy;
+// - a remote fact missing from the file was deleted by hand, and gets a tombstone at
+//   mtime, only when this machine had it at the last sync (in ids, lastSeen <= at).
+// Every other remote fact is taken: it was learned elsewhere, or after the last sync.
+// A file untouched since the last sync keeps its line dates, so newer remote edits win.
+// Remote env facts are left out: the env scan finds them again.
+export const mergeWithFile = (file: Memory, remote: Memory, mtime: number, lastSync?: LastSync): Memory => {
+  if (lastSync === undefined) {
+    return mergeMemories(file, remote)
+  }
+  const changed = mtime > lastSync.at
+  const local: Memory = changed ? { ...file, facts: file.facts.map(f => ({ ...f, lastSeen: Math.max(f.lastSeen, mtime) })) } : file
   const inFile = new Set(local.facts.map(f => f.id))
+  const hadIt = new Set(lastSync.ids)
   const tombstones: Record<string, number> = { ...remote.tombstones }
   const facts: Fact[] = []
   for (const f of remote.facts) {
     if (f.source === 'env') {
       continue
     }
-    if (inFile.has(f.id) || f.lastSeen > mtime) {
-      facts.push(f)
-    } else {
+    if (!inFile.has(f.id) && changed && f.lastSeen <= lastSync.at && hadIt.has(f.id)) {
       tombstones[f.id] = Math.max(mtime, tombstones[f.id] ?? 0)
+    } else {
+      facts.push(f)
     }
   }
   return mergeMemories(local, { facts, tombstones })
