@@ -66,29 +66,36 @@ Cover the layers that matter for this goal, and skip the rest:
 | Skills / plugins | packaged workflows that do this job already |
 | Workflow | memory (Obsidian, an LLM wiki), automations, side sessions, hooks |
 
-### 5. Hand it over
-Use this shape:
+### 5. Hand it over: the whole stack
+Never stop at one tool. Give the full stack that makes the job better end to end, in the user's language:
 
-**💡 There's a better way** (in the user's language)
-- 🔌 **Connector**: **<exact name>**: <why, one line>. → <how to add it>
-- 🧩 **Skill / plugin**: **<exact name>**: <why>. → <install command, or render the SuggestPluginInstall / SuggestSkills card>
-- 📦 **From GitHub**: **<owner/repo>** (★ <stars>, pushed <month>): <what it is>. → <how to use or install it>
-- ⚙️ **Setup** (only when it matters): <model, effort or settings tip>
+**💡 There's a better way**
 
-Fill each slot from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Skip a slot only when nothing real fits.
+**Goal:** <one line: what the user is really trying to achieve>
 
-For a big goal (an agent, an app, a business workflow), also add:
+| Layer | Pick | Why | How to add | Status |
+|---|---|---|---|---|
+| 🤖 AI / model | … | … | … | … |
+| ⚙️ Runs on / automation | … | … | … | … |
+| 🔌 Connector: <system> | … (one row per system the job touches) | … | … | … |
+| 🧩 Skill / plugin | … | … | … | … |
+| 📦 From GitHub | owner/repo (★ stars, pushed month) | … | … | … |
+| 🧠 Data / memory | … | … | … | … |
+| 📊 Monitoring / cost | … | … | … | … |
+| 🛡️ Safety | … | … | … | … |
 
-**Recommended stack**
-| Layer | Pick | Why | How to add |
-|---|---|---|---|
+Status is "already installed", "installed, needs login" or "new". Drop rows that don't matter for this goal; add rows for any other system the job touches.
 
-**Start here:** the single first step to take now.
+**Flow:** <how the pieces chain: website form → automation → CRM → chat alert → weekly report>
 
-Then carry on with the actual task, or offer to set up the first suggestion if that's the obvious next step.
+**Alternatives:** <one line: the cheaper/simpler stack, and the bigger/pro one>
+
+**Start here:** <the single first step to take now>
+
+Fill every row from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Render `suggest_connectors` / `SuggestPluginInstall` / `SuggestSkills` cards for the strongest new picks. Then carry on with the actual task, or offer to set up the first step.
 
 ## Rules
-- One strong pick per slot (connector, skill/plugin, GitHub repo, setup). A good pick beats a list of weak ones.
+- One clear pick per row, with the reason. Cover the whole job, but skip padding: a row that doesn't help this goal goes.
 - Be specific: "connect the HubSpot connector", not "use a CRM".
 - Mark things the user already has as "(already installed)".
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it.
