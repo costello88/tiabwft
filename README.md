@@ -72,10 +72,10 @@ Next to the chat, the **💡 Better way** panel always shows the latest stack su
 
 tiabwft learns, automatically, what you use, what you chose, what you don't want and your constraints, and uses that in every suggestion: it builds on what you have, never brings back a tool you turned down, and keeps picks within your budget.
 
-- **Where:** this project's memory lives in `.claude/tiabwft/memory.md`, a readable file you can edit. Your personal profile (budget, skill level, general preferences) stays on your computer.
-- **How:** at the start of a session it reads your connectors, `package.json`, Python files, compose files and the *names* in `.env.example`, never values. After a turn where you said something worth remembering, a small model (Haiku) picks out the facts in the background, for about $0.0003 a turn.
+- **Where:** this project's memory lives in `.claude/tiabwft/memory.md`, a readable file you can edit. Your personal profile (budget, skill level, general preferences) is kept in the plugin's local storage on your computer, and only leaves it when you turn on Azure sync, which then stores both in your own Azure.
+- **How:** at the start of a session it reads your connectors, `package.json`, Python files, compose files and the *names* in `.env.example`, never values. After a turn with a prompt of 40 characters or more, or an answer with a 💡 block, a small model (Haiku) reads just your prompt and the final answer in the background and picks out facts worth keeping. That's roughly 3,000 tokens in and a few hundred out per turn, a fraction of a cent at Haiku prices.
 - **Control:** the panel's 🧠 What I know section (open it with `/tiabwft panel`) lists everything, with ✕ to delete. `/tiabwft memory`, `/tiabwft forget <text>`, `/tiabwft remember <text>`, `/tiabwft memory off` (pause for this session) and `/tiabwft memory reset`.
-- **Settings:** `memory` (on/off), `projectFile` (commit/ignore), and optional Azure sync (`azureSyncUrl`, `azureSyncKey`; see `azure/README.md`).
+- **Settings:** `memory` (`on` by default, or `off`), `projectFile` (`commit` by default, or `ignore`, which adds the file to `.gitignore`), and optional Azure sync (`azureSyncUrl`, `azureSyncKey`; both empty by default; see `azure/README.md`).
 
 ## License
 

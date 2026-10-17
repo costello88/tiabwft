@@ -6,7 +6,7 @@ Run with [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals). E
 |---|---|
 | `triggering/` | Big asks (an agent, a stack, a connector) load the `tiabwft` skill and get the full hand-over: a Goal, a full stack table (4+ specific rows), a Flow line and a "Start here" line. |
 | `negative/` | Plain tasks (a typo, a regex) don't load the skill and get no block, or a one-line tip at most. |
-| `memory/` | Remembered rejections, known stack and budget constraints shape the stack. |
+| `memory/` | Rejections, a known stack and budget constraints shape the stack. The facts are stated in the prompt, because the eval sandbox starts each case in an empty folder without a memory file; these cases test that the advice honours them, not the full remember-and-recall loop (that's covered by the unit tests in `hooks/memory/`). |
 | `rules/` | Things the user already has are marked "(already installed)", and nothing is installed or connected without a yes. |
 
 ## Run it

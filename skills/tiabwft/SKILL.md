@@ -108,4 +108,5 @@ Fill every row from a lookup (registry, plugin and skill search, `gh search`) or
 - Mark things the user already has as "(already installed)", including ones they told you about.
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it. "Set it up for me" or "get it working" before they've seen your pick still isn't a yes: name the pick and the step, then ask.
 - No suggestion is better than a padded one. If the user's current way is already the best, say so in one line.
+- With a budget: give every paid pick its monthly price, add them up, and keep the total within the budget. When you can't check a price, say so and pick a free option for that row instead; never spend the whole budget on one layer.
 - Trending isn't the same as right. Recommend a popular stack only when it fits the user's goal, budget and skill level, and pass on the relevant safety warning (untrusted skills, broad tokens, unsandboxed agents).
