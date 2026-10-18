@@ -103,9 +103,9 @@ test('rememberText fallback strips colons from the subject and cuts long text', 
   expect(a.added.length).toBe(1)
   expect(a.added[0]?.kind).toBe('constraint')
   expect(a.added[0]?.subject.includes(':')).toBe(false)
-  const b = await rememberText(deps, 'x'.repeat(200), emptyMemory(), emptyMemory())
+  const b = await rememberText(deps, 'x'.repeat(300), emptyMemory(), emptyMemory())
   expect(b.added.length).toBe(1)
-  expect(b.added[0]?.text.length).toBe(160)
+  expect(b.added[0]?.text.length).toBe(240)
 })
 
 test('rememberText sends no secret to the model and stores nothing', async () => {
@@ -153,7 +153,7 @@ test('applyLearned merges only fresh facts into the current memory and keeps its
 })
 
 test('a kept unreadable line survives a learn-and-save', async () => {
-  const long = `- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)`
+  const long = `- Supabase: ${'x'.repeat(241)} (said, 2026-10-17)`
   const original = ['## Notes', '- free text', '## Stack', long, '## Rejected', '- Zapier: too expensive (said, 2026-10-17)', ''].join('\n')
   const { deps, data } = makeDeps({}, { [`/repo/${PROJECT_FILE}`]: original })
   const loaded = await loadAll(deps)

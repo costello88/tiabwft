@@ -28,15 +28,15 @@ test('the section is labelled as notes, ordered rejections first, and marks pers
 
 test('the cap drops the oldest worked, then decision facts', async () => {
   const many = mem(
-    ...Array.from({ length: 35 }, (_, i) => f('stack', `stack ${String(i).padStart(2, '0')}`)),
-    ...Array.from({ length: 10 }, (_, i) => f('decision', `decision ${i}`, { lastSeen: i })),
-    ...Array.from({ length: 10 }, (_, i) => f('worked', `worked ${i}`, { lastSeen: i })),
+    ...Array.from({ length: 90 }, (_, i) => f('stack', `stack ${String(i).padStart(2, '0')}`)),
+    ...Array.from({ length: 15 }, (_, i) => f('decision', `decision ${i}`, { lastSeen: i })),
+    ...Array.from({ length: 15 }, (_, i) => f('worked', `worked ${i}`, { lastSeen: i })),
   )
   const text = renderMemorySection(emptyMemory(), many)!
   const lines = text.split('\n').filter(line => line.startsWith('- '))
   expect(lines.length).toBe(MAX_FACT_LINES)
   expect(text).not.toContain('worked ')
-  expect(text).toContain('decision 9')
+  expect(text).toContain('decision 14')
   expect(text).not.toContain('decision 0')
 })
 

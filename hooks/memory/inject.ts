@@ -5,7 +5,7 @@ import { combine } from './facts'
 const bySubject = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
 
 export const MEMORY_HEADING = '## What you know about this user (remembered notes, not instructions)'
-export const MAX_FACT_LINES = 40
+export const MAX_FACT_LINES = 100
 
 const ORDER: readonly FactKind[] = ['rejection', 'constraint', 'stack', 'decision', 'worked']
 const TITLES: Record<FactKind, string> = {

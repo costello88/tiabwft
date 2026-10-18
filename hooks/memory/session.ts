@@ -1,6 +1,6 @@
 import type { Fact, Memory } from '../../types'
 import { scanEnvironment } from './env-scan'
-import { containsSecret, deleteFact, mergeFact, mergeMemories, mergeWithFile, normaliseSubject, replaceEnvFacts, toFact } from './facts'
+import { containsSecret, deleteFact, LIMITS, mergeFact, mergeMemories, mergeWithFile, normaliseSubject, replaceEnvFacts, toFact } from './facts'
 import { runReader } from './reader'
 import type { Complete } from './reader'
 import {
@@ -186,7 +186,7 @@ export const rememberText = async (deps: MemoryDeps, text: string, personal: Mem
   let added: Fact[] = read.facts.map(f => ({ ...f, source: 'user' as const }))
   if (added.length === 0) {
     const subject = text.split(/\s+/).filter(w => w !== '').slice(0, 4).join(' ').replace(/:/g, '').trim().slice(0, 60).trim()
-    const fallback = toFact({ kind: 'constraint', scope: 'personal', subject, text: text.trim().slice(0, 160) }, 'user', now)
+    const fallback = toFact({ kind: 'constraint', scope: 'personal', subject, text: text.trim().slice(0, LIMITS.text) }, 'user', now)
     added = fallback === undefined ? [] : [fallback]
   }
   return { ...place(personal, project, added), added }

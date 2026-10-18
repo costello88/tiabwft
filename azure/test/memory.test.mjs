@@ -70,5 +70,10 @@ rows.set('personal|bad', { partitionKey: 'personal', rowKey: 'bad', kind: 'fact'
 const g3 = await call()
 check('corrupt row skipped on GET', g3.status === 200 && g3.jsonBody.facts.length === 1)
 
+reset()
+const wide = { id: 'stack:wide', lastSeen: 1, subject: '漢'.repeat(60), text: '\u{1F600}'.repeat(120), reason: '漢'.repeat(200) }
+check('a fact at the plugin caps with wide characters is accepted', (await call({ method: 'PUT', body: { facts: [wide], tombstones: {} } })).status === 204)
+check('a fact over 4 KB is refused', (await call({ method: 'PUT', body: { facts: [{ id: 'big', lastSeen: 1, text: 'x'.repeat(5000) }], tombstones: {} } })).status === 400)
+
 console.log(`${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

@@ -7,7 +7,7 @@ const PARTITION = /^(personal|project:[\w./-]{1,120})$/
 const MAX_BODY = 256 * 1024
 const MAX_ITEMS = 500
 const MAX_ID = 200
-const MAX_FACT = 2048
+const MAX_FACT = 4096
 let ready
 
 // Only remember the table as ready once it exists (created now, or 409 already exists).

@@ -28,7 +28,7 @@ test('toFact rejects unknown kinds, bad lengths and secrets', async () => {
   expect(toFact({ kind: 'wish', subject: 'x', text: 'y' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'stack', subject: '', text: 'y' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'stack', subject: 'x'.repeat(61), text: 'y' }, 'conversation', 1)).toBeUndefined()
-  expect(toFact({ kind: 'stack', subject: 'x', text: 'y'.repeat(161) }, 'conversation', 1)).toBeUndefined()
+  expect(toFact({ kind: 'stack', subject: 'x', text: 'y'.repeat(241) }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'stack', subject: 'OpenAI', text: 'key sk-abcdefghijklmnopqrstuv' }, 'conversation', 1)).toBeUndefined()
   expect(toFact({ kind: 'constraint', subject: 'contact', text: 'mail me at a.b@example.com' }, 'conversation', 1)).toBeUndefined()
   expect(toFact('not an object', 'conversation', 1)).toBeUndefined()

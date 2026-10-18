@@ -1,7 +1,7 @@
 import type { Fact, FactKind, FactScope, FactSource, Memory } from '../../types'
 
 export const KINDS: readonly FactKind[] = ['stack', 'decision', 'rejection', 'constraint', 'worked']
-export const LIMITS = { subject: 60, text: 160, reason: 120 } as const
+export const LIMITS = { subject: 60, text: 240, reason: 200 } as const
 
 const SECRET_PATTERNS: readonly RegExp[] = [
   /\bsk-[A-Za-z0-9_-]{16,}/,

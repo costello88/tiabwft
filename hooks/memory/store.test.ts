@@ -49,14 +49,14 @@ test('ignore mode adds the memory folder to .gitignore once', async () => {
   expect(data.get('/repo/.gitignore')).toBe('node_modules/\n.claude/tiabwft/\n')
 })
 
-test('suggested names are normalised, unique and capped at 50', async () => {
+test('suggested names are normalised, unique and capped at 300', async () => {
   const { kv } = memKV()
   await addSuggested(kv, ['HubSpot', 'hubspot', 'Slack'])
   expect(await loadSuggested(kv)).toEqual(['hubspot', 'slack'])
-  await addSuggested(kv, Array.from({ length: 60 }, (_, i) => `tool ${i}`))
+  await addSuggested(kv, Array.from({ length: 320 }, (_, i) => `tool ${i}`))
   const all = await loadSuggested(kv)
-  expect(all.length).toBe(50)
-  expect(all.at(-1)).toBe('tool 59')
+  expect(all.length).toBe(300)
+  expect(all.at(-1)).toBe('tool 319')
 })
 
 test('projectPartition prefers the GitHub repo, else the folder name plus a hash of the root', async () => {
