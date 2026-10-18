@@ -1,15 +1,15 @@
 # What other people built: community map
 
-Snapshot checked on GitHub on **2026-10-16** (stars rounded). Repos get renamed, archived or abandoned, so re-check stars and the last push live before you recommend one (see "Search live" at the bottom). Link to repos; don't copy their content.
+Snapshot checked on GitHub on **2026-10-18** (stars rounded). Repos get renamed, archived or abandoned, so re-check stars and the last push live before you recommend one (see "Search live" at the bottom). Link to repos; don't copy their content.
 
 ## Where to look first
 | Need | Go-to source | Notes |
 |---|---|---|
-| Any MCP server | punkpeye/awesome-mcp-servers (96k) | biggest curated list; also modelcontextprotocol/servers (official reference) and modelcontextprotocol/registry |
-| Skills | anthropics/skills (182k, official), obra/superpowers (300k, dev-process skills), ComposioHQ/awesome-claude-skills (77k), VoltAgent/awesome-agent-skills (36k, skills that work across agents) | |
+| Any MCP server | punkpeye/awesome-mcp-servers (97k) | biggest curated list; also modelcontextprotocol/servers (official reference) and modelcontextprotocol/registry |
+| Skills | anthropics/skills (182k, official), obra/superpowers (301k, dev-process skills), ComposioHQ/awesome-claude-skills (77k), VoltAgent/awesome-agent-skills (36k, skills that work across agents) | |
 | Claude Code tips, hooks, commands | hesreallyhim/awesome-claude-code (56k) | very active |
 | Subagent definitions | VoltAgent/awesome-claude-code-subagents (26k) | grouped by role |
-| Agent starters | anthropics/claude-agent-sdk-demos, claude-quickstarts (18k), claude-cookbooks (54k), claude-agent-sdk-python / -typescript | official |
+| Agent starters | anthropics/claude-agent-sdk-demos, claude-quickstarts (19k), claude-cookbooks (54k), claude-agent-sdk-python / -typescript | official |
 | Installable templates | davila7/claude-code-templates (33k) | uses its own CLI (`npx claude-code-templates`), not a marketplace |
 
 Skip these: appcypher/awesome-mcp-servers (archived), GongRzhe/Gmail-MCP-Server (archived), HubSpot/mcp-server (stub; use HubSpot's hosted server instead).
@@ -19,15 +19,17 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 
 | owner/repo | Marketplace name | Plugins | Stars |
 |---|---|---|---|
-| anthropics/claude-plugins-official | claude-plugins-official | 315 | 40k |
+| anthropics/claude-plugins-official | claude-plugins-official | 315 | 42k |
 | anthropics/knowledge-work-plugins | knowledge-work-plugins (business roles) | 123 | 30k |
-| anthropics/claude-code | claude-code-plugins (examples) | 13 | 151k |
+| anthropics/claude-code | claude-code-plugins (examples) | 13 | 152k |
 | anthropics/skills | anthropic-agent-skills | 5 | 182k |
 | wshobson/agents | claude-code-workflows | 94 | 41k |
 | obra/superpowers-marketplace | superpowers-marketplace | 10 | 1.3k |
 | jeremylongshore/tons-of-skills-marketplace | claude-code-plugins-plus | 434 | 2.8k |
 | ananddtyagi/cc-marketplace | cc-marketplace (quiet since 2026-01) | 119 | 0.7k |
-| trailofbits/skills-curated | skills-curated (community-vetted, by a security firm; checked 2026-10-17) | 29 | 0.5k |
+| thedotmack/claude-mem | thedotmack (session memory) | 2 | 102k |
+| addyosmani/agent-skills | addy-agent-skills (engineering skills) | 1 | 108k |
+| trailofbits/skills-curated | skills-curated (community-vetted, by a security firm) | 29 | 0.5k |
 
 ## MCP servers by category (prefer official ones)
 | Category | Pick | Alternatives / notes |
@@ -36,10 +38,13 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 | Browser automation | microsoft/playwright-mcp (38k) | |
 | Notion | makenotion/notion-mcp-server (official) | |
 | Obsidian | MarkusPfundstein/mcp-obsidian (4.5k) | cyanheads/obsidian-mcp-server; both need Obsidian's Local REST API plugin; Ar9av/obsidian-wiki for a wiki-style vault |
-| HubSpot | HubSpot's hosted MCP server / claude.ai connector | shinzo-labs/hubspot-mcp (small) |
+| HubSpot | HubSpot's hosted MCP server / claude.ai connector | shinzo-labs/hubspot-mcp (small, quiet since 2025-11) |
 | Salesforce | salesforcecli/mcp (official) | tsmztech/mcp-server-salesforce |
-| Linear | Linear's hosted MCP server / claude.ai connector | jerhadf/linear-mcp-server |
+| Linear | Linear's hosted MCP server / claude.ai connector | jerhadf/linear-mcp-server (quiet since 2025-05) |
 | Sentry | getsentry/toolkit (official) | |
+| Library docs | upstash/context7 (63k, vendor) | up-to-date docs for coding agents; also has a marketplace |
+| Chrome debugging | ChromeDevTools/chrome-devtools-mcp (54k, official) | DevTools access for agents; also has a marketplace |
+| Code navigation | oraios/serena (30k) | semantic code search and edits via language servers |
 | Postgres | crystaldba/postgres-mcp (3.4k) | the old reference server is archived |
 | Supabase | supabase/mcp (official) | |
 | Web search | exa-labs/exa-mcp-server, brave/brave-search-mcp-server | |

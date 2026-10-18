@@ -93,7 +93,7 @@ Never stop at one tool. Give the full stack that makes the job better end to end
 | 📊 Monitoring / cost | … | … | … | … |
 | 🛡️ Safety | … | … | … | … |
 
-Status is "already installed", "installed, needs login" or "new". Each row names **one** specific product, connector, skill or repo: put the runners-up in the Also considered line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Add as many rows as the job needs, one for every layer and system it touches; drop only rows that don't matter for this goal.
+Status is "already installed", "installed, needs login" or "new", and "—" for a row that is a choice or a practice rather than something to add (a model pick, a safety rule). Each row names **one** specific product, connector, skill or repo (the 🛡️ Safety and 📊 Monitoring rows may name one concrete practice instead): put the runners-up in the Also considered line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Add as many rows as the job needs, one for every layer and system it touches; drop only rows that don't matter for this goal.
 
 **Scoring:** for each layer compare the top 3 real candidates the lookups found. Score each by fit, cost, effort, trust and lock-in, 1–5 each, and pick the best. Show the pick's total in the Why cell (for example "22/25").
 
