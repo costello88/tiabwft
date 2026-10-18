@@ -47,7 +47,7 @@ Do the task the way you normally would. Then end your reply with a block headed 
    - 🧠 Data / memory (where facts and history live)
    - 📊 Monitoring / cost / settings
    - 🛡️ Safety (approvals, narrow tokens, what not to automate)
-   Status is "already installed", "installed, needs login" or "new". One specific pick per row (other options go under Alternatives); for things the user already has, How to add says "already connected", never a step to add it again.
+   Status is "already installed", "installed, needs login" or "new", and "—" for a row that is a choice or a practice rather than something to add (a model pick, a safety rule). One specific pick per row (other options go under Alternatives); for things the user already has, How to add says "already connected", never a step to add it again.
 3. **Flow**: one line showing how the pieces chain together (A → B → C).
 4. **Alternatives**: one line with the simpler/cheaper stack and the bigger one.
 5. **Start here**: exactly one concrete action the user can take right now (connect X, run this command). One action: no "then", no list, no question. Questions for the user go on their own line after it.
