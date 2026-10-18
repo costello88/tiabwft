@@ -6,18 +6,18 @@
 
 Launch only when all of these are true:
 
-- [ ] PR #3 (side panel) and PR #4 (memory) are merged into `main`, and this branch's v0.8.0 work is merged after them.
-- [ ] `v0.8.0` is tagged on `main` and the release workflow created the GitHub Release.
-- [ ] CI is green on `main`; `claude plugin validate .` and `claude plugin test .` pass (151 tests, 0 fail).
-- [ ] The install line works on a clean machine.
-- [ ] The demo GIF is recorded and the README placeholder replaced.
+- [x] PR #3 (side panel), PR #4 (memory) and PR #5 (v0.8.0) are merged into `main`.
+- [x] `v0.8.0` is tagged on `main` and the release workflow created the GitHub Release.
+- [x] CI is green on `main`; `claude plugin validate .` and `claude plugin test .` pass (152 tests, 0 fail).
+- [x] The install line works on a clean machine (both forms tested 2026-10-18 with an empty config).
+- [x] The demo GIF is in the README; the 25 s video (landscape + vertical) is on the v0.8.0 release.
 
 If a gate slips, move launch day to the next Tuesday to Thursday.
 
 ## Week 0: prep (Mon 2026-10-19 to Fri 2026-10-23)
 
-- [ ] Merge #3 and #4, then this branch; tag `v0.8.0` (`git tag v0.8.0 && git push origin v0.8.0`).
-- [ ] Record a 20-second GIF (prompt → answer → 💡 table) for `docs/demo.gif`, and a 30–60 second video for X and LinkedIn.
+- [x] Merge #3, #4 and #5; tag `v0.8.0`.
+- [x] Demo GIF in `docs/demo.gif`; 25 s video for X, LinkedIn and Shorts on the v0.8.0 release.
 - [ ] Repo polish: description, topics (`claude-code`, `claude-code-plugin`, `claude-skills`, `mcp` are set; consider `agent-skills`), homepage, a social preview image.
 - [ ] Enable GitHub Discussions (Settings → Features) so the issue-form link works; seed Q&A, Ideas, Show and tell; pin a welcome post.
 - [ ] Create the labels the release notes use: `feature`, `enhancement`, `bug`, `fix`, `docs`, `documentation`, `skip-changelog`.

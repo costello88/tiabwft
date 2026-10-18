@@ -4,9 +4,9 @@
 
 ## Before you post
 
-- [ ] PRs #3 and #4 merged, `v0.8.0` tagged, and the GitHub Release exists (the release workflow makes it).
+- [x] PRs #3 and #4 merged, `v0.8.0` tagged, and the GitHub Release exists (the release workflow makes it).
 - [ ] Fresh install tested on a clean machine with the README's install line.
-- [ ] Demo GIF recorded and in the README (replace the `docs/demo.gif` placeholder).
+- [x] Demo GIF recorded and in the README.
 - [ ] A free day: you need to be in the thread for most of it.
 
 ## Title options
@@ -30,7 +30,7 @@ Write this yourself. These are the points to cover, in roughly this order. Keep 
 - **Memory.** Remembers stack, decisions, rejections and constraints per project in a plain `memory.md` in the repo; a small model (Haiku) extracts facts in the background (about 3,000 tokens in per turn). Optional sync to your own Azure Function.
 - **What it reads and sends.** Names in `.env.example`, never values; no telemetry; nothing installed without a yes. Link the README's Trust section.
 - **What it doesn't do / limits.** Adds tokens to every turn; suggestions can be wrong or stale; quiet on trivial tasks; `/tiabwft off` or `big-asks-only` mode if it is too chatty. Name any known rough edge honestly.
-- **How you tested it.** 151 hook tests, CI, an eval suite run with and without the plugin (for example the lead-capture case: 0.25 without, 0.92 with, in the 2026-10-17 run). Say what the evals can't cover (no live research in the sandbox).
+- **How you tested it.** 152 hook tests, CI, an eval suite run with and without the plugin (for example the lead-capture case: 0.25 without, 0.92 with, in the 2026-10-17 run). Say what the evals can't cover (no live research in the sandbox).
 - **How to try it.** The one install line from the README. Open source, MIT.
 - **A real question for readers.** For example: which layer do they most often get wrong when they start a project, or which suggestion would they want it to stop making.
 

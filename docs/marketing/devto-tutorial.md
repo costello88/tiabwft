@@ -129,6 +129,6 @@ The hook also adds live session facts: which model is in use, and a tip when the
 
 ## Wrap-up
 
-The repo is [costello88/tiabwft](https://github.com/costello88/tiabwft) (MIT), with 151 tests, CI, and an eval suite that runs each prompt with and without the plugin. Issues and PRs welcome, especially better picks for the reference files.
+The repo is [costello88/tiabwft](https://github.com/costello88/tiabwft) (MIT), with 152 tests, CI, and an eval suite that runs each prompt with and without the plugin. Issues and PRs welcome, especially better picks for the reference files.
 
 What's the one tool you wish Claude had told you about before you built the thing by hand?
