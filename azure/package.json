@@ -1,0 +1,11 @@
+{
+  "name": "tiabwft-memory-sync",
+  "version": "0.7.0",
+  "private": true,
+  "main": "src/functions/*.js",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@azure/data-tables": "13.3.0",
+    "@azure/functions": "4.5.1"
+  }
+}

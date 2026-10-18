@@ -3,4 +3,8 @@ node_modules/
 tsconfig.json
 .claude-flow/
 evals/results/
+azure/node_modules/
+
+# Growth metrics from docs/marketing/track.mjs (traffic data is private)
+growth/
 data/
