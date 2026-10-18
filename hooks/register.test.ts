@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import { extractSuggestion, PANE, sessionFacts } from './register'
+import { PANE, sessionFacts } from './register'
+import { extractSuggestion } from './suggestion'
 import type { On } from 'claude-code'
 
 const SECTION_ID = 'tiabwft:better-way'
@@ -81,7 +82,15 @@ test('the compose section carries the live facts', async ($, on) => {
 test('the protocol asks for a full stack from real lookups', async ($, on) => {
   base(on)
   const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
-  for (const part of ['Full stack', 'Flow', 'Start here', '🤖', '🔌', '🧩', '📦', '🛡️', 'mcp-registry', 'SearchPlugins', 'gh search repos', '--topic=claude-skills', "user's language"]) {
+  for (const part of ['Full stack', 'Flow', 'Start here', '🤖', '🔌', '🧩', '📦', '🛡️', 'mcp-registry', 'SearchPlugins', 'gh search repos', '--topic=claude-skills', "user's language", 'Also considered', '/25']) {
+    expect(text).toContain(part)
+  }
+})
+
+test('the protocol requires content, distribution and best odds for growth goals', async ($, on) => {
+  base(on)
+  const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  for (const part of ['🎬', '📣', 'Best odds', 'disclosed']) {
     expect(text).toContain(part)
   }
 })

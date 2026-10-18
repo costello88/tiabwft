@@ -1,6 +1,6 @@
 {
   "name": "tiabwft",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "There Is A Better Way For That: on every prompt Claude also suggests the smarter stack, AI, connectors and skills for the job.",
   "author": {
     "name": "costello88"
@@ -19,6 +19,33 @@
         "big-asks-only",
         "off"
       ]
+    },
+    "memory": {
+      "type": "string",
+      "title": "Memory",
+      "description": "on: tiabwft learns your stack, decisions, rejections and constraints automatically. off: no memory.",
+      "default": "on",
+      "options": ["on", "off"]
+    },
+    "projectFile": {
+      "type": "string",
+      "title": "Project memory file",
+      "description": "commit: .claude/tiabwft/memory.md is a normal file in the repo (works in cloud sessions and for teammates). ignore: tiabwft adds it to .gitignore.",
+      "default": "commit",
+      "options": ["commit", "ignore"]
+    },
+    "azureSyncUrl": {
+      "type": "string",
+      "title": "Azure sync URL",
+      "description": "Optional. The URL of your tiabwft Azure Function (see azure/README.md). Empty: no sync.",
+      "default": ""
+    },
+    "azureSyncKey": {
+      "type": "string",
+      "title": "Azure sync key",
+      "description": "Optional. The key your Azure Function expects in x-tiabwft-key.",
+      "default": "",
+      "sensitive": true
     }
   }
 }
