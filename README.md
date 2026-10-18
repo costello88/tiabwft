@@ -8,7 +8,7 @@
 
 A Claude Code plugin. On every prompt, Claude does your task as usual, then asks itself "is there a better way for that?" and hands you the best full stack for the job: model, automation, connectors, skills and plugins, GitHub repos, data, cost and safety. It looks the picks up live, scores them, remembers what you use and what you turned down, and gives you exactly one first step.
 
-<!-- demo GIF: docs/demo.gif (to record) -->
+![tiabwft: a prompt, the scored 💡 stack, and the side panel with memory](docs/demo.gif)
 
 ## Install
 
