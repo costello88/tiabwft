@@ -25,13 +25,13 @@
 >
 > **What I made:** tiabwft ("there is a better way for that"), a Claude Code plugin. Claude still does the task. Then it adds a short block: the real goal in one line, a table with one pick per layer (model, automation, connectors, skills/plugins, GitHub repos, data, cost, safety), a flow line, three alternatives (cheapest, no-code, pro) and exactly one first step.
 >
-> [screenshot or GIF of a real 💡 block]
+> [the demo GIF (`docs/demo.gif`) or the 25-second demo video (`tiabwft-demo.mp4` on the [v0.8.0 release](https://github.com/costello88/tiabwft/releases/tag/v0.8.0); a vertical 9:16 cut is there too)]
 >
 > **How the picks are found:** live lookups where the session has them (connector registry, plugin and skill search, read-only `gh search`), plus reference files in the repo. It compares the top 3 candidates per layer and scores them on fit, cost, effort, trust and lock-in. It won't name a tool or repo it couldn't confirm, and it never installs or connects anything without a yes.
 >
 > **Memory:** it remembers your stack, what you chose, what you turned down and your budget, in a readable `.claude/tiabwft/memory.md` in your repo, so it doesn't keep suggesting the thing you already said no to. Optional sync to your own Azure. No telemetry; it reads names in `.env.example`, never values.
 >
-> **Testing:** 151 hook tests, CI, and an eval suite that runs each prompt with and without the plugin.
+> **Testing:** 152 hook tests, CI, and an eval suite that runs each prompt with and without the plugin.
 >
 > Install:
 >

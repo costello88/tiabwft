@@ -55,14 +55,14 @@ Otherwise it suggests the same tool you rejected last week. Keep a small memory 
 **8/**
 I got tired of typing all that, so I built it into a Claude Code plugin: tiabwft ("there is a better way for that").
 
-[demo video here: 20–40 s screen recording of a prompt, the answer, and the 💡 table appearing]
+[attach the 25-second demo video (`tiabwft-demo.mp4` on the [v0.8.0 release](https://github.com/costello88/tiabwft/releases/tag/v0.8.0); a vertical 9:16 cut is there too)]
 
-Open source, MIT, 151 tests, no telemetry.
+Open source, MIT, 152 tests, no telemetry.
 
 github.com/costello88/tiabwft
 
 ## Notes
 
-- **Where the video goes:** attach the 20–40 second recording to post 8 (the one with the link). Optionally a still screenshot of the 💡 table on post 3.
+- **Where the video goes:** attach the 25-second demo video (`tiabwft-demo.mp4` on the [v0.8.0 release](https://github.com/costello88/tiabwft/releases/tag/v0.8.0); a vertical 9:16 cut is there too) to post 8 (the one with the link). Optionally a still screenshot of the 💡 table on post 3.
 - Tag the tools you build on only where it's natural (for example Claude Code), not people at random.
 - A few days later, a follow-up post with real results: stars, issues, the most useful feedback, what you changed because of it.

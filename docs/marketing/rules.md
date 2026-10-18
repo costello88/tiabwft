@@ -17,7 +17,7 @@ The one-line version: be useful, be honest, post once per place, answer everyone
 | Open "please add my tool" issues or PRs in other people's repos | GitHub bars promotional bulk content in other users' issues. One genuinely relevant PR is fine; a template sent to 50 repos is spam. |
 | Submit to awesome-claude-code by script, CLI, PR or bot, or before the repo is 14 days old | Their rules: web issue form only, by a human, one resource at a time, at least 14 days of active development or 100 stars. Breaking them risks a restriction. |
 | Use sock puppets or bot accounts to comment or star | GitHub ToS bans bot-registered accounts; HN and Reddit treat it as manipulation. |
-| Overstate | No "10x" or "best plugin ever". State what the repo shows: 151 tests, CI, an eval suite with measured scores, what it reads and what it doesn't. |
+| Overstate | No "10x" or "best plugin ever". State what the repo shows: 152 tests, CI, an eval suite with measured scores, what it reads and what it doesn't. |
 | Tie the project to a token, airdrop or paid-promotion scheme | It buys attention and costs trust. |
 | Bury the risk | It is a plugin that runs a hook on the user's machine. Say what runs, what's read, what's sent and where memory lives (the README's Trust section). |
 | Hide that you built it | Always say "I built this" on Reddit, HN, X and LinkedIn. |
