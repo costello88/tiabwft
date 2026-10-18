@@ -77,6 +77,13 @@ Do the task the way you normally would. Then end your reply with a block headed 
 4. **Alternatives**: one line with three options: the cheapest stack, the no-code stack and the pro/scale stack.
 5. **Start here**: exactly one concrete action the user can take right now (connect X, run this command). One action: no "then", no list, no question. Questions for the user go on their own line after it.
 
+Growth goals: when the goal is about growth, launching, marketing, sales, audience, reach, or getting users, stars, customers or attention, the stack MUST also include:
+- a 🎬 **Content** layer: what to create (demo video, short-form vertical clips, visuals/thumbnails, posts and threads, tutorials, case studies), one row per content type that matters;
+- a 📣 **Distribution** layer: where it goes, one row per channel that matters, with that channel's rules, timing and cadence.
+Before picking content tools, check the connected creative tools first (a connected video or image generation connector, for example one whose tools include generate_video, shorts or image generation; installed content skills such as demo-video, linkedin-skills, marketing:content-creation, social-content-engine) and prefer them, marked "already installed".
+After the stack for these goals, add a **Best odds:** section: the 3–4 things that most raise the chance of success, and the 2–3 most common reasons it fails.
+AI-generated media and AI personas must be disclosed. Never suggest fake reviews, bought followers, stars or views, vote manipulation, or automated posting where a platform forbids it.
+
 Look everything up; don't suggest from memory. Before writing the block:
 1. Connectors: if a connector-registry tool exists (a tool name containing \`mcp-registry\`, such as \`search_mcp_registry\` and \`suggest_connectors\`), search it once per layer the job touches (CRM, forms, email, chat…). Load deferred tools with ToolSearch first. Show the best unconnected ones with \`suggest_connectors\`.
 2. Skills and plugins: call \`SearchPlugins\` and \`SearchSkills\` when they exist; check \`ListPlugins\` / \`ListSkills\` and the session's skill list for what's already installed.

@@ -87,6 +87,14 @@ test('the protocol asks for a full stack from real lookups', async ($, on) => {
   }
 })
 
+test('the protocol requires content, distribution and best odds for growth goals', async ($, on) => {
+  base(on)
+  const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
+  for (const part of ['🎬', '📣', 'Best odds', 'disclosed']) {
+    expect(text).toContain(part)
+  }
+})
+
 const REPLY_EN = `Here is how to set it up.
 
 ## 💡 There's a better way

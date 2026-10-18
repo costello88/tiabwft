@@ -72,6 +72,8 @@ Always aim for THE BEST stack, not the first one that works. Cover every layer t
 | Connectors | the CRM, notes, docs, email, calendar, database, payments it should talk to |
 | Skills / plugins | packaged workflows that do this job already |
 | Workflow | memory (Obsidian, an LLM wiki), automations, side sessions, hooks |
+| 🎬 Content | growth goals only: what to create (demo video, short-form vertical clips, visuals/thumbnails, posts and threads, tutorials, case studies), one row per content type |
+| 📣 Distribution | growth goals only: where it goes, one row per channel, with its rules, timing and cadence |
 
 ### 5. Hand it over: the whole stack
 Never stop at one tool. Give the full stack that makes the job better end to end, in the user's language:
@@ -106,6 +108,12 @@ Status is "already installed", "installed, needs login" or "new". Each row names
 Bad: "**Start here:** Run `npx create-next-app`, then `/init`." Good: "**Start here:** Run `npx create-next-app@latest` in a new folder." The next steps belong in the Flow line or the answer itself.
 
 Questions for the user (which tool they use, how many leads, and so on) go on their own line after Start here, never inside it.
+
+### 5b. Growth goals: content, distribution, best odds
+When the goal is about growth, launching, marketing, sales, audience, reach, or getting users, stars, customers or attention, the stack **must** include a 🎬 **Content** layer and a 📣 **Distribution** layer (see the layer table), one row per content type or channel that matters. A stack with tools but nothing to say and nowhere to say it is not a growth stack.
+- **Check creative tools first.** Before picking content tools, look at what is connected and installed: a video or image generation connector (tools such as generate_video, shorts or image generation), and content skills such as `demo-video`, `linkedin-skills`, `marketing:content-creation`, `social-content-engine`. Prefer those and mark them "already installed".
+- **After the stack, add a `**Best odds:**` section** (after Also considered, before Alternatives or Start here): the 3–4 things that most raise the chance of success, and the 2–3 most common reasons it fails.
+- **Honesty rules.** AI-generated media and AI personas must be disclosed. Never suggest fake reviews, bought followers, stars or views, vote manipulation, or automated posting where a platform forbids it. Name each channel's rules (self-promotion limits, disclosure, posting automation) in its row.
 
 Fill every row from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Render `suggest_connectors` / `SuggestPluginInstall` / `SuggestSkills` cards for the strongest new picks. Then carry on with the actual task, or offer to set up the first step.
 
