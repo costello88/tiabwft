@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Daily growth snapshot for the repo, through the gh CLI. No dependencies, read-only on GitHub.
 //
-// Usage: node marketing/track.mjs [csv-path] [--repo=owner/name] [--date=YYYY-MM-DD] [--dry-run]
+// Usage: node docs/marketing/track.mjs [csv-path] [--repo=owner/name] [--date=YYYY-MM-DD] [--dry-run]
 //   csv-path   default ./growth/metrics.csv (growth/ is git-ignored: traffic data is private)
 //   --repo     default costello88/tiabwft
 //   --date     the row's date, default today (UTC)

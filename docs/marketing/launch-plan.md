@@ -21,7 +21,7 @@ If a gate slips, move launch day to the next Tuesday to Thursday.
 - [ ] Repo polish: description, topics (`claude-code`, `claude-code-plugin`, `claude-skills`, `mcp` are set; consider `agent-skills`), homepage, a social preview image.
 - [ ] Enable GitHub Discussions (Settings → Features) so the issue-form link works; seed Q&A, Ideas, Show and tell; pin a welcome post.
 - [ ] Create the labels the release notes use: `feature`, `enhancement`, `bug`, `fix`, `docs`, `documentation`, `skip-changelog`.
-- [ ] Start `node marketing/track.mjs` daily to get a baseline.
+- [ ] Start `node docs/marketing/track.mjs` daily to get a baseline.
 - [ ] Comment helpfully in r/ClaudeAI and r/ClaudeCode (no links) to build history; check your karma against the 50-karma showcase rule.
 - [ ] Rewrite the drafts in this folder in your own words.
 

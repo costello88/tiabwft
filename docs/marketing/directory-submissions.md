@@ -20,7 +20,7 @@ A paid claude.ai plan (Pro, Max, Team or Enterprise). On Team/Enterprise, an Own
   - No `package.json` plus lockfile at the plugin root (there is none; `azure/` has its own `package.json` without a lockfile).
   - Readable source, no minified code.
   - **Describe in the README everything the plugin runs, sends or fetches.** The README's "Trust and privacy" section covers it, including the optional Azure sync and the Haiku background reader. The security scan flags undisclosed destinations.
-  - The `marketing/`, `.github/` and `evals/` folders are inside the plugin folder and ship with it. That's allowed, but consider whether you want them in installs.
+  - The `docs/`, `.github/` and `evals/` folders are inside the plugin folder and ship with it. That's allowed, but consider whether you want them in installs.
 - [ ] Raise `version` in `plugin.json` with every release.
 
 ### Portal steps and what to enter

@@ -5,8 +5,5 @@ tsconfig.json
 evals/results/
 azure/node_modules/
 
-# Growth metrics from marketing/track.mjs (traffic data is private)
-growth/
-
-# Growth metrics from marketing/track.mjs (traffic data is private)
+# Growth metrics from docs/marketing/track.mjs (traffic data is private)
 growth/

@@ -29,7 +29,7 @@ The one-line version: be useful, be honest, post once per place, answer everyone
 - Stay in the thread on launch day and reply to every comment, including the critical ones. Thank people for bugs and fix them quickly.
 - Use the plain repo URL on Hacker News (no tracking parameters).
 - Keep a human approval step between any draft and any post. Scheduling an approved post is fine; auto-posting generated text is not.
-- Track what each post did (`marketing/track.mjs`) and write down what you posted when, so you can see which channel helped.
+- Track what each post did (`docs/marketing/track.mjs`) and write down what you posted when, so you can see which channel helped.
 
 ## Sources
 
