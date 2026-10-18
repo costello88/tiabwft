@@ -78,7 +78,7 @@ export const runReader = async (complete: Complete, prompt: string, answer: stri
       model: 'haiku',
       system: READER_SYSTEM,
       prompt: buildReaderPrompt(prompt, answer),
-      maxTokens: 1500,
+      maxTokens: 3000,
       effort: 'low',
       timeoutMs: 10000,
     })

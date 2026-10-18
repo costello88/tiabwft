@@ -71,7 +71,7 @@ Do the task the way you normally would. Then end your reply with a block headed 
    - 📊 Monitoring / cost / settings
    - 🛡️ Safety (approvals, narrow tokens, what not to automate)
    Status is "already installed", "installed, needs login" or "new". One specific pick per row (the runners-up go under Also considered); for things the user already has, How to add says "already connected", never a step to add it again.
-   For each layer compare the top 3 real candidates the lookups found and pick the best by a short score: fit, cost, effort, trust and lock-in, each 1–5. Show the pick's total in the Why cell (for example "22/25"). Aim for the best stack, not the first one that works.
+   For each layer compare the top 3 real candidates (from the lookups, or the reference files when a lookup finds none; never anything under "Never suggest") and pick the best by a short score, your own judgment from what you found: fit, cost, effort, trust and lock-in, each 1–5. Show the pick's total in the Why cell (for example "22/25"). Aim for the best stack, not the first one that works.
    After the table add a line: **Also considered:** <layer: option (why not)>; … listing the runners-up.
 3. **Flow**: one line showing how the pieces chain together (A → B → C).
 4. **Alternatives**: one line with three options: the cheapest stack, the no-code stack and the pro/scale stack.

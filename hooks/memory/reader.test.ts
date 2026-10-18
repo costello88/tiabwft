@@ -76,7 +76,7 @@ test('runReader calls haiku once with the system prompt and limits, and parses t
   expect(calls[0]?.model).toBe('haiku')
   expect(calls[0]?.effort).toBe('low')
   expect(calls[0]?.timeoutMs).toBe(10000)
-  expect(calls[0]?.maxTokens).toBe(1500)
+  expect(calls[0]?.maxTokens).toBe(3000)
   expect(r.facts[0]?.subject).toBe('budget')
 })
 
