@@ -1,0 +1,46 @@
+name: Community scan
+
+# Collects live GitHub data for skills/tiabwft/references/community.md and
+# publishes it as data/community-scan.json on the community-scan branch.
+# The weekly "tiabwft community refresh" cloud routine (Mondays 06:00 UTC)
+# reads that file, edits community.md and opens a PR. Cloud sessions can't
+# call the GitHub API for other repos, so this job does the fetching.
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan community repos
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Collect stars, pushes, archive state and search results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/community-scan.mjs "$RUNNER_TEMP/community-scan.json"
+      # One orphan commit, force-pushed: the branch only ever holds the latest scan.
+      - name: Publish to the community-scan branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan scan-publish
+          git rm -rqf .
+          mkdir -p data
+          cp "$RUNNER_TEMP/community-scan.json" data/community-scan.json
+          git add data/community-scan.json
+          git commit -qm "Community scan $(date -u +%F)"
+          git push -f origin HEAD:community-scan
