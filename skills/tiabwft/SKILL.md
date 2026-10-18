@@ -88,7 +88,7 @@ Never stop at one tool. Give the full stack that makes the job better end to end
 | 📊 Monitoring / cost | … | … | … | … |
 | 🛡️ Safety | … | … | … | … |
 
-Status is "already installed", "installed, needs login" or "new". Each row names **one** specific product, connector, skill or repo: put other options in the Alternatives line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Drop rows that don't matter for this goal; add rows for any other system the job touches.
+Status is "already installed", "installed, needs login" or "new", and "—" for a row that is a choice or a practice rather than something to add (a model pick, a safety rule). Each row names **one** specific product, connector, skill or repo (the 🛡️ Safety and 📊 Monitoring rows may name one concrete practice instead): put other options in the Alternatives line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Drop rows that don't matter for this goal; add rows for any other system the job touches.
 
 **Flow:** <how the pieces chain: website form → automation → CRM → chat alert → weekly report>
 
