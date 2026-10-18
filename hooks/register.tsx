@@ -81,7 +81,7 @@ Growth goals: when the goal is about growth, launching, marketing, sales, audien
 - a 🎬 **Content** layer: what to create (demo video, short-form vertical clips, visuals/thumbnails, posts and threads, tutorials, case studies), one row per content type that matters;
 - a 📣 **Distribution** layer: where it goes, one row per channel that matters, with that channel's rules, timing and cadence.
 Before picking content tools, check the connected creative tools first (a connected video or image generation connector, for example one whose tools include generate_video, shorts or image generation; installed content skills such as demo-video, linkedin-skills, marketing:content-creation, social-content-engine) and prefer them, marked "already installed".
-After the stack for these goals, add a **Best odds:** section: the 3–4 things that most raise the chance of success, and the 2–3 most common reasons it fails.
+Inside the 💡 block, right after **Also considered**, these goals always get a section headed exactly **Best odds:** (never skipped, never replaced by a section elsewhere in the reply) with two parts under that heading: "Raises the odds:" the 3–4 things that most raise the chance of success, and "Most common reasons it fails:" the 2–3 reasons it usually fails.
 AI-generated media and AI personas must be disclosed. Never suggest fake reviews, bought followers, stars or views, vote manipulation, or automated posting where a platform forbids it.
 
 Look everything up; don't suggest from memory. Before writing the block:
