@@ -4,3 +4,4 @@ tsconfig.json
 .claude-flow/
 evals/results/
 azure/node_modules/
+data/
