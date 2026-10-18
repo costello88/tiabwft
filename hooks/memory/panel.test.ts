@@ -116,15 +116,15 @@ test('the section shows next to a suggestion too', async ($, on) => {
   await ui.unmount()
 })
 
-test('45 facts show 40 and a "+5 more" line', async ($, on) => {
+test('105 facts show 100 and a "+5 more" line', async ($, on) => {
   files.clear()
-  const many = Array.from({ length: 45 }, (_, i) => personalFact('stack', 'personal', `Tool${String(i).padStart(2, '0')}`))
+  const many = Array.from({ length: 105 }, (_, i) => personalFact('stack', 'personal', `Tool${String(i).padStart(2, '0')}`))
   seed = { 'memory.personal': mem(many) }
   engine(on)
   await $.session.start({ source: 'startup', cwd: '/repo' } as never)
   const ui = await mountPane($)
   expect(await ui.find({ type: 'Text', text: /\+5 more \(see \/tiabwft memory\)/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Tool39 text/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /Tool40 text/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /Tool99 text/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Tool100 text/ })).toBeUndefined()
   await ui.unmount()
 })

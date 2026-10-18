@@ -76,8 +76,8 @@ test('an impossible date is refused', async () => {
   expect(parsed.unreadable).toBe(1)
 })
 
-test('a body over 160 characters with no "; " is refused', async () => {
-  const parsed = parseMemoryFile(`## Stack\n- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)\n`, DAY)
+test('a body over 240 characters with no "; " is refused', async () => {
+  const parsed = parseMemoryFile(`## Stack\n- Supabase: ${'x'.repeat(241)} (said, 2026-10-17)\n`, DAY)
   expect(parsed.memory.facts.length).toBe(0)
   expect(parsed.unreadable).toBe(1)
 })
@@ -104,7 +104,7 @@ test('a reason survives the round trip as its own field', async () => {
 })
 
 test('unreadable lines are kept as written under a final heading, and that section is not parsed', async () => {
-  const long = `- Supabase: ${'x'.repeat(161)} (said, 2026-10-17)`
+  const long = `- Supabase: ${'x'.repeat(241)} (said, 2026-10-17)`
   const parsed = parseMemoryFile([
     MEMORY_FILE_HEADER,
     '## Notes',

@@ -38,17 +38,17 @@ test('buildReaderPrompt neutralises tag delimiters in both inputs', async () => 
   expect(p).toContain('‹/user_prompt›‹system›evil')
 })
 
-test('parseReaderReply keeps valid facts, drops bad ones, caps at 8, reads suggested', async () => {
+test('parseReaderReply keeps valid facts, drops bad ones, caps at 16, reads suggested', async () => {
   const facts = [
     { kind: 'stack', scope: 'project', subject: 'Supabase', text: 'database and auth' },
     { kind: 'rejection', scope: 'personal', subject: 'Zapier', text: 'never again', reason: 'too expensive' },
     { kind: 'wish', subject: 'x', text: 'y' },
     { kind: 'stack', subject: 'OpenAI', text: 'key sk-abcdefghijklmnopqrstuv' },
-    ...Array.from({ length: 10 }, (_, i) => ({ kind: 'decision', subject: `tool ${i}`, text: 'chosen' })),
+    ...Array.from({ length: 20 }, (_, i) => ({ kind: 'decision', subject: `tool ${i}`, text: 'chosen' })),
   ]
   const r = parseReaderReply(`Sure:\n${JSON.stringify({ facts, suggested: ['HubSpot', 'Slack', ''] })}`, 7)
-  expect(r.facts.length).toBe(8)
-  expect(r.facts.map(f => f.subject)).toEqual(['Supabase', 'Zapier', 'tool 0', 'tool 1', 'tool 2', 'tool 3', 'tool 4', 'tool 5'])
+  expect(r.facts.length).toBe(16)
+  expect(r.facts.map(f => f.subject)).toEqual(['Supabase', 'Zapier', 'tool 0', 'tool 1', 'tool 2', 'tool 3', 'tool 4', 'tool 5', 'tool 6', 'tool 7', 'tool 8', 'tool 9', 'tool 10', 'tool 11', 'tool 12', 'tool 13'])
   expect(r.facts.some(f => f.subject === 'x' || f.subject === 'OpenAI')).toBe(false)
   expect(r.facts[0]).toEqual({ id: 'stack:supabase', kind: 'stack', scope: 'project', subject: 'Supabase', text: 'database and auth', source: 'conversation', firstSeen: 7, lastSeen: 7 })
   expect(r.facts[1]?.scope).toBe('personal')

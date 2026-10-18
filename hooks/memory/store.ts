@@ -85,7 +85,7 @@ export const loadSuggested = async (kv: KV): Promise<string[]> => {
 export const addSuggested = async (kv: KV, names: readonly string[]): Promise<void> => {
   const all = [...(await loadSuggested(kv)), ...names.map(normaliseSubject)]
   const unique = [...new Set(all.reverse())].reverse()
-  await kv.set(SUGGESTED_KEY, unique.slice(-50))
+  await kv.set(SUGGESTED_KEY, unique.slice(-300))
 }
 
 // The url of the "origin" remote in a .git/config, else of the first remote.

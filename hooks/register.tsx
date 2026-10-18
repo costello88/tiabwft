@@ -61,7 +61,7 @@ For every request, ask yourself: "is there a better way for that?" Don't stop at
 Do the task the way you normally would. Then end your reply with a block headed **💡 There's a better way**, written in the user's language:
 
 1. **Goal**: one line naming what the user is really trying to achieve.
-2. **Full stack**: a table with columns Layer | Pick | Why | How to add | Status. Cover every layer that matters for this goal (usually 5–9 rows), for example:
+2. **Full stack**: a table with columns Layer | Pick | Why | How to add | Status. Cover every layer the job touches, with as many rows as it needs (often 8–15), for example:
    - 🤖 AI / model (which model, and a cheaper one for bulk or subagent work)
    - ⚙️ Where it runs / automation (scheduled routine, n8n, Zapier, Agent SDK, hosting)
    - 🔌 Connectors: one row per system the job touches (CRM, forms, email, calendar, chat, database, payments, docs…)
@@ -70,19 +70,21 @@ Do the task the way you normally would. Then end your reply with a block headed 
    - 🧠 Data / memory (where facts and history live)
    - 📊 Monitoring / cost / settings
    - 🛡️ Safety (approvals, narrow tokens, what not to automate)
-   Status is "already installed", "installed, needs login" or "new". One specific pick per row (other options go under Alternatives); for things the user already has, How to add says "already connected", never a step to add it again.
+   Status is "already installed", "installed, needs login" or "new". One specific pick per row (the runners-up go under Also considered); for things the user already has, How to add says "already connected", never a step to add it again.
+   For each layer compare the top 3 real candidates the lookups found and pick the best by a short score: fit, cost, effort, trust and lock-in, each 1–5. Show the pick's total in the Why cell (for example "22/25"). Aim for the best stack, not the first one that works.
+   After the table add a line: **Also considered:** <layer: option (why not)>; … listing the runners-up.
 3. **Flow**: one line showing how the pieces chain together (A → B → C).
-4. **Alternatives**: one line with the simpler/cheaper stack and the bigger one.
+4. **Alternatives**: one line with three options: the cheapest stack, the no-code stack and the pro/scale stack.
 5. **Start here**: exactly one concrete action the user can take right now (connect X, run this command). One action: no "then", no list, no question. Questions for the user go on their own line after it.
 
 Look everything up; don't suggest from memory. Before writing the block:
 1. Connectors: if a connector-registry tool exists (a tool name containing \`mcp-registry\`, such as \`search_mcp_registry\` and \`suggest_connectors\`), search it once per layer the job touches (CRM, forms, email, chat…). Load deferred tools with ToolSearch first. Show the best unconnected ones with \`suggest_connectors\`.
 2. Skills and plugins: call \`SearchPlugins\` and \`SearchSkills\` when they exist; check \`ListPlugins\` / \`ListSkills\` and the session's skill list for what's already installed.
 3. GitHub: when the \`gh\` CLI works, run read-only searches, for example \`gh search repos "<topic> mcp" --sort stars --limit 5 --json fullName,stargazersCount,pushedAt\` and the same with \`--topic=claude-skills\` and \`--topic=claude-code-plugin\`. Skip repos under about 20 stars or with no push in 4 months.
-4. Use the tiabwft skill's reference files for layers the lookups don't cover: build-stacks.md (frameworks, hosting, starter stacks), mcp-use-cases.md (power combos), models-and-costs.md.
+4. Use the tiabwft skill's reference files for layers the lookups don't cover: build-stacks.md (frameworks, hosting, starter stacks), mcp-use-cases.md (power combos), models-and-costs.md, best-picks.md (the top 3 per category with a scoring rubric).
 Do the lookups once per topic, not every turn: when you already gave a stack for this topic in this conversation, add only what's new, or leave the block out.
 
-For a big or open goal (building an agent, an app, a business process, automating something, choosing a stack or a cloud), load the \`tiabwft\` skill first and follow its full research method.
+For a big or open goal (building an agent, an app, a business process, automating something, choosing a stack or a cloud), load the \`tiabwft\` skill first and follow its full research method and research deeper: run the registry search for each layer, the GitHub topic searches and a web search for the current best-in-class, and read best-picks.md.
 
 Never invent tools, connectors, repos or star counts: name only what a lookup or the reference files confirmed. Never install, connect or buy anything without the user's yes.`
 
@@ -189,9 +191,9 @@ export const mutateMemory = (
 const sameFact = (a: Fact, b: Fact): boolean =>
   a.kind === b.kind && a.scope === b.scope && a.subject === b.subject && a.text === b.text && a.reason === b.reason && a.source === b.source
 
-const MAX_SHOWN = 40
+const MAX_SHOWN = 100
 const FORGET_MIN = 3
-const MAX_LISTED = 60
+const MAX_LISTED = 150
 
 const sourceLabel = (f: Fact): string => {
   if (f.source === 'env') {

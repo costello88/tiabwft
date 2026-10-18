@@ -82,7 +82,7 @@ test('the compose section carries the live facts', async ($, on) => {
 test('the protocol asks for a full stack from real lookups', async ($, on) => {
   base(on)
   const text = (await $.prompt.compose(FACTS)).sections.at(-1)?.text ?? ''
-  for (const part of ['Full stack', 'Flow', 'Start here', '🤖', '🔌', '🧩', '📦', '🛡️', 'mcp-registry', 'SearchPlugins', 'gh search repos', '--topic=claude-skills', "user's language"]) {
+  for (const part of ['Full stack', 'Flow', 'Start here', '🤖', '🔌', '🧩', '📦', '🛡️', 'mcp-registry', 'SearchPlugins', 'gh search repos', '--topic=claude-skills', "user's language", 'Also considered', '/25']) {
     expect(text).toContain(part)
   }
 })

@@ -21,6 +21,7 @@ Read only the file the request needs. They're snapshots, so check anything time-
 | `references/trending-stacks.md` | "what are people using", popular workflows, Claude Code tips, hype and security warnings |
 | `references/community.md` | finding plugins, skills, marketplaces and MCP servers other people published; live `gh` searches |
 | `references/models-and-costs.md` | model choice, prices, token savers, Claude Code settings, plans |
+| `references/best-picks.md` | the top 3 per category with a scoring rubric |
 
 ## Method
 
@@ -44,6 +45,8 @@ Tools, models and prices change fast. Use whatever of these this session has:
 
 If this session has none of these research tools, work from the reference files, stick to well-known names you're sure of, and say in one line that the picks weren't checked live.
 
+For a big goal, research deeper: run the registry search for each layer, the GitHub topic searches and a web search for the current best-in-class, and read `references/best-picks.md`. Do the lookups once per topic, not every turn.
+
 Never recommend something you couldn't confirm exists. Say so when a pick is your judgment rather than a checked fact. Only suggest installing code from a repo that is well known, maintained and has a readable source.
 
 ### 3b. Check the cost side
@@ -60,7 +63,7 @@ Prefer, in this order:
 3. a managed service over self-hosting,
 4. custom code only when nothing else fits.
 
-Cover the layers that matter for this goal, and skip the rest:
+Always aim for THE BEST stack, not the first one that works. Cover every layer the job touches (often 8–15 rows), for example:
 | Layer | Examples of what to decide |
 |---|---|
 | AI / model | which Claude model (or other AI) fits the cost, speed and quality needed; what it will roughly cost |
@@ -88,11 +91,15 @@ Never stop at one tool. Give the full stack that makes the job better end to end
 | 📊 Monitoring / cost | … | … | … | … |
 | 🛡️ Safety | … | … | … | … |
 
-Status is "already installed", "installed, needs login" or "new". Each row names **one** specific product, connector, skill or repo: put other options in the Alternatives line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Drop rows that don't matter for this goal; add rows for any other system the job touches.
+Status is "already installed", "installed, needs login" or "new". Each row names **one** specific product, connector, skill or repo: put the runners-up in the Also considered line, never "X, Y or Z" in a row. For anything the user already has, the How to add cell says "already connected" or "use it": never a step to add it again. Add as many rows as the job needs, one for every layer and system it touches; drop only rows that don't matter for this goal.
+
+**Scoring:** for each layer compare the top 3 real candidates the lookups found. Score each by fit, cost, effort, trust and lock-in, 1–5 each, and pick the best. Show the pick's total in the Why cell (for example "22/25").
 
 **Flow:** <how the pieces chain: website form → automation → CRM → chat alert → weekly report>
 
-**Alternatives:** <one line: the cheaper/simpler stack, and the bigger/pro one>
+**Also considered:** <layer: option (why not)>; <layer: option (why not)>; …
+
+**Alternatives:** <one line, three options: the cheapest stack, the no-code stack and the pro/scale stack>
 
 **Start here:** <exactly one concrete action the user can take right now: connect X, run this command, open this page. One action: no "then", no list, no question>
 
@@ -103,7 +110,7 @@ Questions for the user (which tool they use, how many leads, and so on) go on th
 Fill every row from a lookup (registry, plugin and skill search, `gh search`) or the reference files. Render `suggest_connectors` / `SuggestPluginInstall` / `SuggestSkills` cards for the strongest new picks. Then carry on with the actual task, or offer to set up the first step.
 
 ## Rules
-- One clear pick per row, with the reason. Cover the whole job, but skip padding: a row that doesn't help this goal goes.
+- One clear pick per row, with the reason and its score. Cover the whole job, but skip padding: a row that doesn't help this goal goes.
 - Be specific: "connect the HubSpot connector", not "use a CRM".
 - Mark things the user already has as "(already installed)", including ones they told you about.
 - Don't install, connect or buy anything without the user's yes. Suggest it, and offer to do it. "Set it up for me" or "get it working" before they've seen your pick still isn't a yes: name the pick and the step, then ask.

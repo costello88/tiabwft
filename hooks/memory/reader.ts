@@ -28,7 +28,7 @@ Rules:
 
 Reply with JSON only, no prose:
 {"facts":[{"kind":"stack|decision|rejection|constraint|worked","scope":"personal|project","subject":"…","text":"…","reason":"…"}],"suggested":["…"]}
-At most 8 facts. subject max 60 characters, text max 160, reason max 120. With nothing to remember: {"facts":[],"suggested":[]}`
+At most 16 facts. subject max 60 characters, text max 240, reason max 200. With nothing to remember: {"facts":[],"suggested":[]}`
 
 export const shouldRead = (prompt: string, answer: string): boolean => prompt.trim().length >= 40 || hasSuggestionBlock(answer)
 
@@ -58,13 +58,13 @@ export const parseReaderReply = (text: string, now: number): ReaderResult => {
   const facts = (Array.isArray(obj.facts) ? obj.facts : [])
     .map(draft => toFact(draft, 'conversation', now))
     .filter((f): f is Fact => f !== undefined)
-    .slice(0, 8)
+    .slice(0, 16)
   // Checked before trimming, so a separator inside the name is seen and dropped.
   const suggested = (Array.isArray(obj.suggested) ? obj.suggested : [])
     .filter((s): s is string => typeof s === 'string' && !hasControlChars(s) && !s.includes(':'))
     .map(s => s.trim())
     .filter(s => s.length > 0 && s.length <= LIMITS.subject && !containsSecret(s))
-    .slice(0, 10)
+    .slice(0, 25)
 
   return { facts, suggested }
 }
