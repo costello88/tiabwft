@@ -7,7 +7,7 @@ Snapshot checked on GitHub on **2026-10-18** (stars rounded). Repos get renamed,
 |---|---|---|
 | Any MCP server | punkpeye/awesome-mcp-servers (97k) | biggest curated list; also modelcontextprotocol/servers (official reference) and modelcontextprotocol/registry |
 | Skills | anthropics/skills (182k, official), obra/superpowers (301k, dev-process skills), ComposioHQ/awesome-claude-skills (77k), VoltAgent/awesome-agent-skills (36k, skills that work across agents) | |
-| Claude Code tips, hooks, commands | hesreallyhim/awesome-claude-code (56k) | very active |
+| Claude Code tips, hooks, commands | hesreallyhim/awesome-claude-code (56k) | very active; shanraisshan/claude-code-best-practice (68k) is a usage-guide repo |
 | Subagent definitions | VoltAgent/awesome-claude-code-subagents (26k) | grouped by role |
 | Agent starters | anthropics/claude-agent-sdk-demos, claude-quickstarts (19k), claude-cookbooks (54k), claude-agent-sdk-python / -typescript | official |
 | Installable templates | davila7/claude-code-templates (33k) | uses its own CLI (`npx claude-code-templates`), not a marketplace |
@@ -30,6 +30,8 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 | thedotmack/claude-mem | thedotmack (session memory) | 2 | 102k |
 | addyosmani/agent-skills | addy-agent-skills (engineering skills) | 1 | 108k |
 | trailofbits/skills-curated | skills-curated (community-vetted, by a security firm) | 29 | 0.5k |
+| sickn33/agentic-awesome-skills | agentic-awesome-skills (big skill catalog) | 31 | 48k |
+| alirezarezvani/claude-skills | claude-code-skills (skills, agents, commands) | 99 | 28k |
 
 ## MCP servers by category (prefer official ones)
 | Category | Pick | Alternatives / notes |
@@ -44,7 +46,7 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 | Sentry | getsentry/toolkit (official) | |
 | Library docs | upstash/context7 (63k, vendor) | up-to-date docs for coding agents; also has a marketplace |
 | Chrome debugging | ChromeDevTools/chrome-devtools-mcp (54k, official) | DevTools access for agents; also has a marketplace |
-| Code navigation | oraios/serena (30k) | semantic code search and edits via language servers |
+| Code navigation | oraios/serena (30k) | semantic code search and edits via language servers; DeusData/codebase-memory-mcp (47k) indexes a codebase into a knowledge graph |
 | Postgres | crystaldba/postgres-mcp (3.4k) | the old reference server is archived |
 | Supabase | supabase/mcp (official) | |
 | Web search | exa-labs/exa-mcp-server, brave/brave-search-mcp-server | |
