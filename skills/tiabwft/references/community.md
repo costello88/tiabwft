@@ -1,6 +1,6 @@
 # What other people built: community map
 
-Snapshot checked on GitHub on **2026-10-18** (stars rounded). Repos get renamed, archived or abandoned, so re-check stars and the last push live before you recommend one (see "Search live" at the bottom). Link to repos; don't copy their content.
+Snapshot checked on GitHub on **2026-10-19** (stars rounded). Repos get renamed, archived or abandoned, so re-check stars and the last push live before you recommend one (see "Search live" at the bottom). Link to repos; don't copy their content.
 
 ## Where to look first
 | Need | Go-to source | Notes |
@@ -19,17 +19,20 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 
 | owner/repo | Marketplace name | Plugins | Stars |
 |---|---|---|---|
-| anthropics/claude-plugins-official | claude-plugins-official | 315 | 42k |
+| anthropics/claude-plugins-official | claude-plugins-official | 315 | 43k |
 | anthropics/knowledge-work-plugins | knowledge-work-plugins (business roles) | 123 | 30k |
 | anthropics/claude-code | claude-code-plugins (examples) | 13 | 152k |
 | anthropics/skills | anthropic-agent-skills | 5 | 182k |
 | wshobson/agents | claude-code-workflows | 94 | 41k |
 | obra/superpowers-marketplace | superpowers-marketplace | 10 | 1.3k |
-| jeremylongshore/tons-of-skills-marketplace | claude-code-plugins-plus | 434 | 2.8k |
+| jeremylongshore/tons-of-skills-marketplace | claude-code-plugins-plus | 434 | 2.9k |
 | ananddtyagi/cc-marketplace | cc-marketplace (quiet since 2026-01) | 119 | 0.7k |
 | thedotmack/claude-mem | thedotmack (session memory) | 2 | 102k |
 | addyosmani/agent-skills | addy-agent-skills (engineering skills) | 1 | 108k |
 | trailofbits/skills-curated | skills-curated (community-vetted, by a security firm) | 29 | 0.5k |
+| ruvnet/ruflo | ruflo (multi-agent swarm tooling, many sub-plugins) | 46 | 77k |
+| alirezarezvani/claude-skills | claude-code-skills (broad role-based skill collection) | 99 | 28k |
+| coreyhaines31/marketingskills | marketingskills (marketing and growth skills) | 1 | 55k |
 
 ## MCP servers by category (prefer official ones)
 | Category | Pick | Alternatives / notes |
@@ -48,6 +51,7 @@ Add a marketplace with `/plugin marketplace add <owner/repo>`, then install a pl
 | Postgres | crystaldba/postgres-mcp (3.4k) | the old reference server is archived |
 | Supabase | supabase/mcp (official) | |
 | Web search | exa-labs/exa-mcp-server, brave/brave-search-mcp-server | |
+| Web scraping / crawling | firecrawl/firecrawl-mcp-server (official, 7.6k) | apify/apify-mcp-server (12k) runs ready-made scrapers from the Apify Store |
 | Slack | korotovsky/slack-mcp-server | or the claude.ai Slack connector |
 | Gmail / Google Workspace | taylorwilsdon/google_workspace_mcp | or the claude.ai Gmail / Drive / Calendar connectors |
 
