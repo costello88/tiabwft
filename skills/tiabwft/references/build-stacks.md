@@ -1,6 +1,6 @@
 # What stack to build X with
 
-Researched on **2026-10-16**. **[V]** means several independent sources agree; **[U]** means unverified or from general knowledge. Prices move all the time, so tell the user to check the vendor's pricing page before they commit.
+Researched on **2026-11-01**. **[V]** means several independent sources agree; **[U]** means unverified or from general knowledge. Prices move all the time, so tell the user to check the vendor's pricing page before they commit.
 
 **Default rule:** use the least infrastructure that works. Write code only when you need custom tools or strict control, or when the thing is a product you'll sell. For models: Haiku for high-volume simple steps, Sonnet for most agents, Opus or Fable for hard reasoning (see models-and-costs.md).
 

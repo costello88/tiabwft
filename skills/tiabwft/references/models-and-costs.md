@@ -1,6 +1,6 @@
 # Models, token spend and settings
 
-Checked against the official docs on **2026-10-16**. Prices and limits change, so for an exact figure, check the source link (or the `claude-api` skill) before quoting it. Items marked *(unverified)* could not be confirmed.
+Checked against the official docs on **2026-11-01**. Prices and limits change, so for an exact figure, check the source link (or the `claude-api` skill) before quoting it. Items marked *(unverified)* could not be confirmed.
 
 ## Which model
 Sources: platform.claude.com/docs/en/models/overview, platform.claude.com/docs/en/about-claude/pricing
@@ -29,7 +29,7 @@ Source: code.claude.com/docs/en/costs
 | Shrink context | `/compact <what to keep>` | over about 60% full and the same task continues. Compacting is itself a big request |
 | Auto-compact point | `/autocompact 500k` or `"autoCompactWindow": 200000` (100K–1M) | long sessions |
 | Effort | `/effort low`, or `"effortLevel": "medium"` (low to xhigh; max only per session) | simple work at high effort, or hard work at low effort |
-| Fast mode | `/fast` | Opus 5.5 only, at $8 / $40 per M tokens: speed costs more. Subscriptions need usage credits |
+| Fast mode | `/fast` | Opus 5.5 (Opus 5 and 4.8 are research preview), at $8 / $40 per M tokens: speed costs more, and it isn't available with the Batch API. Subscriptions need usage credits |
 | Subagents | the Agent tool with `model: haiku` / `sonnet` | research or fan-out work. Only the summary comes back into the main context |
 | Explore agent | built-in, read-only, levels quick / medium / very thorough | broad searches of a codebase |
 | CLAUDE.md | keep it under about 200 lines and move workflow details into skills (they load on demand) | CLAUDE.md is long |
@@ -69,7 +69,8 @@ Source: claude.com/pricing (check it for current prices)
 | Plan | Roughly | Best for |
 |---|---|---|
 | Pro | $20/mo ($17/mo yearly) | light or part-time Claude Code use |
-| Max (5× / 20×) | from $100/mo | all-day Claude Code use; keeps hitting Pro limits |
+| Max (5× Pro usage) | $100/mo | all-day Claude Code use; keeps hitting Pro limits |
+| Ultra | $200/mo | heaviest use: 10× Pro weekly usage, no 5-hour limit for verified accounts |
 | Team Standard / Premium | $25 / $125 per seat per month ($20 / $100 yearly) | teams; Premium has 5× the usage |
 | Enterprise | $20/seat plus usage at API rates, 20-seat minimum | larger organisations |
 | API (pay per token) | per token | CI, scripts, batch jobs, products you ship |
