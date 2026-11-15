@@ -1,6 +1,6 @@
 # Trending stacks: what builders are using right now
 
-Snapshot from **2026-10-16**, built from YouTube titles and descriptions, blogs, dev.to and partial Reddit coverage. The videos themselves weren't watched. "Signal" means how often a pattern showed up across sources, not measured popularity. Star counts, security incidents and usage figures come from those sources and weren't independently verified. Use this to know what people are talking about, then judge for the user's actual goal. Trending isn't the same as right for them.
+Snapshot from **2026-11-15**, built from YouTube titles and descriptions, blogs, dev.to and partial Reddit coverage. The videos themselves weren't watched. "Signal" means how often a pattern showed up across sources, not measured popularity. Star counts, security incidents and usage figures come from those sources and weren't independently verified. Use this to know what people are talking about, then judge for the user's actual goal. Trending isn't the same as right for them.
 
 ## Stacks that keep showing up
 | Stack | For | What each piece does | Signal |
@@ -41,6 +41,7 @@ Snapshot from **2026-10-16**, built from YouTube titles and descriptions, blogs,
 
 ## Hype and safety warnings to pass on
 - **Skill and plugin supply chain.** Hundreds of malicious skills were reportedly found on an OpenClaw skills marketplace. Treat "paste this setup command" skills from any marketplace as untrusted, and read the source first.
+- **npm worms that plant MCP servers.** Security vendors reported in February (SANDWORM_MODE, per SC World) that a Shai-Hulud-style npm worm impersonating developer tools injected a rogue MCP server carrying a prompt injection aimed at stealing API keys. Earlier, the postmark-mcp package was reported to BCC outgoing mail to an attacker. Pin MCP server versions and review what `npx` pulls in. *(Secondary reports; not re-verified this run.)*
 - **Untrusted repos can attack agents.** Researchers reported in September that a repo's own git config could make several coding agents (Claude Code among them) run commands outside their sandbox. Open unknown repos in isolation.
 - **Always-on agents with broad access** (OpenClaw-style gateways) have a long list of security advisories, and some ran without a sandbox by default. Recommend a sandbox, narrow tokens and no delete rights.
 - **Stars aren't quality**, and many "which should you run" comparisons come from companies selling one of the options or hosting for it.
